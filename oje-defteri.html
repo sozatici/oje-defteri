@@ -228,12 +228,25 @@ input[type=color]{
 }
 .tara-dugme svg{width:26px;height:26px;stroke:var(--vurgu);fill:none;stroke-width:2;stroke-linecap:round}
 
-.kamera-sayfa{background:#000}
-.kamera-sayfa .sayfa-ust{background:rgba(0,0,0,.72);border-bottom:none;color:#fff}
+/* Kamera sayfası dikey flex: üst çubuk her zaman görünür kalır.
+   Sabit yükseklik (100vh) iPhone'da tarayıcı çubukları yüzünden taşıp
+   üst çubuğu ekran dışına itiyordu. */
+.kamera-sayfa{background:#000;overflow:hidden}
+.sayfa.kamera-sayfa.acik{display:flex;flex-direction:column}
+.kamera-sayfa .sayfa-ust{background:rgba(0,0,0,.72);border-bottom:none;color:#fff;flex:0 0 auto}
 .kamera-sayfa .sayfa-ust h2{color:#fff}
 .kamera-sayfa .ust-dugme{background:rgba(255,255,255,.16);border-color:transparent;color:#fff}
-.kamera-kutu{position:relative;width:100%;height:calc(100vh - 64px);overflow:hidden;background:#000}
+.kamera-kutu{position:relative;width:100%;flex:1 1 auto;min-height:0;overflow:hidden;background:#000}
 .kamera-kutu video{width:100%;height:100%;object-fit:cover;display:block}
+.kamera-alt{
+  flex:0 0 auto;background:rgba(0,0,0,.72);
+  padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+  display:flex;gap:10px;justify-content:center;
+}
+.kamera-alt button{
+  padding:11px 16px;border-radius:999px;font-size:14px;font-weight:600;
+  background:rgba(255,255,255,.16);color:#fff;
+}
 .nisan{
   position:absolute;left:8%;right:8%;top:50%;transform:translateY(-50%);
   height:150px;border:2px solid rgba(255,255,255,.85);border-radius:14px;
@@ -453,7 +466,12 @@ input[type=color]{
     <p class="kamera-yazi" id="kameraYazi">Şişenin altındaki barkodu çerçeveye getir</p>
     <div class="kamera-hata" id="kameraHata" hidden></div>
   </div>
+  <div class="kamera-alt" id="kameraAlt">
+    <button type="button" id="fotoIleOku">Fotoğraf çekerek oku</button>
+    <button type="button" id="elleYazGec">Numarayı yaz</button>
+  </div>
 </section>
+<input type="file" id="barkodFoto" accept="image/*" hidden>
 
 <!-- Barkod sonucu -->
 <section class="sayfa" id="sonucSayfa">
@@ -632,6 +650,33 @@ const Depo = (() => {
 const Tarayici = (() => {
   const BICIMLER = ["ean_13","ean_8","upc_a","upc_e","code_128","code_39"];
   let akis = null, zxOkuyucu = null, durduruldu = true, dahiliOkuyucu = null;
+  let denenenKare = 0;
+
+  /* ZXing'in çekirdek okuyucusu kullanılıyor. Tarayıcı sarmalayıcısının
+     canvas alan yöntemleri (decodeFromCanvas / decode) bu sürümde ya yok
+     ya da canvas kabul etmiyor; çekirdek API her yerde çalışıyor. */
+  function zxHazirla(){
+    if(zxOkuyucu || !window.ZXing) return zxOkuyucu;
+    try {
+      const ipucu = new Map();
+      ipucu.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39
+      ]);
+      ipucu.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      zxOkuyucu = new ZXing.MultiFormatReader();
+      zxOkuyucu.setHints(ipucu);
+    } catch(e){ console.error(e); zxOkuyucu = null; }
+    return zxOkuyucu;
+  }
+
+  function zxKanvastanOku(tuval){
+    const kaynak = new ZXing.HTMLCanvasElementLuminanceSource(tuval);
+    const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(kaynak));
+    const sonuc = zxOkuyucu.decode(bitmap);
+    return sonuc ? sonuc.getText() : null;
+  }
 
   async function yerlesikVar(){
     if(!("BarcodeDetector" in window)) return false;
@@ -641,7 +686,7 @@ const Tarayici = (() => {
     } catch(e){ return false; }
   }
 
-  async function basla(video, bulundu, hataOldu){
+  async function basla(video, bulundu, hataOldu, ilerleme){
     durduruldu = false;
     try {
       akis = await navigator.mediaDevices.getUserMedia({
@@ -658,50 +703,95 @@ const Tarayici = (() => {
     try { await video.play(); } catch(e){}
 
     if(await yerlesikVar()){
-      dahiliOkuyucu = new window.BarcodeDetector({formats:BICIMLER});
-      dongu(video, bulundu);
-    } else if(window.ZXing){
-      try {
-        const ipucu = new Map();
-        ipucu.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-          ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-          ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-          ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39
-        ]);
-        ipucu.set(ZXing.DecodeHintType.TRY_HARDER, true);
-        zxOkuyucu = new ZXing.BrowserMultiFormatReader(ipucu, 300);
-        zxOkuyucu.decodeFromStream(akis, video, (sonuc) => {
-          if(sonuc && !durduruldu) bulundu(sonuc.getText());
-        });
-      } catch(e){
-        console.error(e);
-        hataOldu("Barkod okuyucu başlatılamadı. Numarayı elle yazabilirsin.");
-      }
-    } else {
+      try { dahiliOkuyucu = new window.BarcodeDetector({formats:BICIMLER}); }
+      catch(e){ dahiliOkuyucu = null; }
+    }
+    if(!dahiliOkuyucu) zxHazirla();
+
+    if(!dahiliOkuyucu && !zxOkuyucu){
       hataOldu("Bu tarayıcıda barkod okunamıyor. Numarayı elle yazabilirsin.");
+      return;
+    }
+    dongu(video, bulundu, ilerleme);
+  }
+
+  /* Kareleri kendimiz alıp okuyoruz. Kütüphanenin kendi akış yönetimi
+     iPhone'da güvenilir çalışmıyordu; ayrıca nişan bölgesini kırpmak
+     hem hızlandırıyor hem isabeti artırıyor. */
+  async function dongu(video, bulundu, ilerleme){
+    const tuval = document.createElement("canvas");
+    const ctx = tuval.getContext("2d", {willReadFrequently:true});
+    denenenKare = 0;
+
+    while(!durduruldu){
+      const vg = video.videoWidth, vy = video.videoHeight;
+      if(video.readyState >= 2 && vg && vy){
+        // Nişan çerçevesine karşılık gelen yatay şerit
+        const kg = Math.round(vg * 0.90), ky = Math.round(vy * 0.34);
+        const kx = Math.round((vg - kg) / 2), kyBas = Math.round((vy - ky) / 2);
+        tuval.width = kg; tuval.height = ky;
+        ctx.drawImage(video, kx, kyBas, kg, ky, 0, 0, kg, ky);
+
+        const kod = await kareOku(tuval);
+        if(kod){
+          if(!durduruldu) bulundu(kod);
+          return;
+        }
+        denenenKare++;
+        if(ilerleme) ilerleme(denenenKare);
+      }
+      await new Promise(r => setTimeout(r, 140));
     }
   }
 
-  async function dongu(video, bulundu){
-    while(!durduruldu && dahiliOkuyucu){
+  /* Tek kareyi eldeki okuyucularla dener. Bulamamak olağandır. */
+  async function kareOku(kaynak){
+    if(dahiliOkuyucu){
       try {
-        const kodlar = await dahiliOkuyucu.detect(video);
-        if(kodlar && kodlar.length && !durduruldu){
-          bulundu(kodlar[0].rawValue);
-          return;
-        }
-      } catch(e){ /* kare atlandı, devam */ }
-      await new Promise(r => setTimeout(r, 220));
+        const kodlar = await dahiliOkuyucu.detect(kaynak);
+        if(kodlar && kodlar.length) return kodlar[0].rawValue;
+      } catch(e){ /* kare atlandı */ }
+    }
+    if(zxOkuyucu){
+      try {
+        const kod = zxKanvastanOku(kaynak);
+        if(kod) return kod;
+      } catch(e){ /* bu karede barkod yok */ }
+      finally { try { zxOkuyucu.reset(); } catch(e){} }
+    }
+    return null;
+  }
+
+  /* Çekilen bir fotoğraftan okuma — canlı tarama tutmazsa yedek yol. */
+  async function dosyadanOku(dosya){
+    if(!dahiliOkuyucu && !zxOkuyucu){
+      if("BarcodeDetector" in window && await yerlesikVar()){
+        try { dahiliOkuyucu = new window.BarcodeDetector({formats:BICIMLER}); } catch(e){}
+      }
+      zxHazirla();
+    }
+    const adres = URL.createObjectURL(dosya);
+    try {
+      const gorsel = await new Promise((coz, red) => {
+        const g = new Image();
+        g.onload = () => coz(g);
+        g.onerror = () => red(new Error("Görsel açılamadı."));
+        g.src = adres;
+      });
+      const tuval = document.createElement("canvas");
+      const olcek = Math.min(1, 1600 / Math.max(gorsel.width, gorsel.height));
+      tuval.width = Math.round(gorsel.width * olcek);
+      tuval.height = Math.round(gorsel.height * olcek);
+      tuval.getContext("2d").drawImage(gorsel, 0, 0, tuval.width, tuval.height);
+      return await kareOku(tuval);
+    } finally {
+      URL.revokeObjectURL(adres);
     }
   }
 
   function dur(){
     durduruldu = true;
     dahiliOkuyucu = null;
-    if(zxOkuyucu){
-      try { zxOkuyucu.reset(); } catch(e){}
-      zxOkuyucu = null;
-    }
     if(akis){
       akis.getTracks().forEach(iz => { try { iz.stop(); } catch(e){} });
       akis = null;
@@ -719,7 +809,7 @@ const Tarayici = (() => {
     return "Kamera açılamadı. Numarayı elle yazabilirsin.";
   }
 
-  return { basla, dur };
+  return { basla, dur, dosyadanOku };
 })();
 
 /* Barkodu doğrula ve sadeleştir: yalnız rakam, EAN/UPC uzunluğu. */
@@ -1289,9 +1379,40 @@ function taramaAc(kaynak){
   const hata = $("#kameraHata");
   hata.hidden = true; hata.innerHTML = "";
   $("#kameraNisan").hidden = false;
+  $("#kameraAlt").hidden = false;
   sayfaAc("#kameraSayfa");
 
-  Tarayici.basla($("#kameraGoruntu"), barkodOkundu, elleGirisGoster);
+  Tarayici.basla($("#kameraGoruntu"), barkodOkundu, elleGirisGoster, kare => {
+    // Çalıştığını göster; bir süre sonra ipucu ver
+    const yazi = $("#kameraYazi");
+    if(kare < 25){
+      yazi.textContent = "Barkodu çerçeveye getir · aranıyor…";
+    } else if(kare < 70){
+      yazi.textContent = "Okuyamıyorum — barkodu yatay tut, biraz yaklaş, ışık olsun";
+    } else {
+      yazi.textContent = "Hâlâ okunmadı. Alttaki “Fotoğraf çekerek oku”yu deneyebilirsin";
+    }
+  });
+}
+
+/* Canlı tarama tutmazsa: tek bir fotoğraf çekilip ondan okunur.
+   iPhone'da bu yol canlı taramadan daha güvenilir olabiliyor. */
+async function fotoIleBarkodOku(dosya){
+  bildir("Fotoğraf okunuyor…");
+  let kod = null;
+  try { kod = await Tarayici.dosyadanOku(dosya); }
+  catch(e){ console.error(e); }
+
+  if(kod){
+    const barkod = barkodDuzelt(kod);
+    if(barkod){
+      try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
+      taramaKapat();
+      barkodOkundu(barkod, true);
+      return;
+    }
+  }
+  bildir("Bu fotoğrafta barkod okunamadı. Daha yakın ve net çekmeyi dene.");
 }
 
 /* Kamera açılamadığında (izin yok, kamera yok, dosyadan açılmış) tarama
@@ -1301,6 +1422,7 @@ function taramaAc(kaynak){
 function elleGirisGoster(mesaj){
   const hata = $("#kameraHata");
   $("#kameraNisan").hidden = true;
+  $("#kameraYazi").textContent = "";
   hata.hidden = false;
   hata.innerHTML = `
     <p style="margin:0;max-width:330px">${kacis(mesaj || "Barkod numarasını elle yazabilirsin.")}</p>
@@ -1406,28 +1528,54 @@ function sonucCiz(barkod, eslesen){
         <h2>Bu oje koleksiyonunda yok</h2>
         <p>${tahmin ? `Barkoda göre markası büyük olasılıkla <strong>${kacis(tahmin)}</strong>.` : "Alırsan hemen kaydedebilirsin."}</p>
         <p class="barkod-metin">${kacis(barkod)}</p>
+        <p class="aranyor" id="internetSatiri">İnternette aranıyor…</p>
       </div>
       <div class="dugme-satir">
         <button class="ikincil" id="sonucYineTara">Yeni tarama</button>
         <button class="birincil" id="sonucEkle">Koleksiyona ekle</button>
       </div>`;
+
+    let internettenGelen = null;
     $("#sonucYineTara").addEventListener("click", () => {
       sayfaKapat("#sonucSayfa");
       taramaAc("magaza");
     });
     $("#sonucEkle").addEventListener("click", () => {
       sayfaKapat("#sonucSayfa");
-      yeniKayitBarkodla(barkod);
+      yeniKayitBarkodla(barkod, internettenGelen);
     });
+
+    // Ürün adını internette ara; sonucu burada görünür yap
+    const satir = $("#internetSatiri");
+    if(!navigator.onLine){
+      satir.textContent = "İnternet yok — ürün adı aranamadı.";
+    } else {
+      urunSorgula(barkod).then(bulunan => {
+        if(!document.body.contains(satir)) return;
+        internettenGelen = bulunan;
+        satir.textContent = bulunan
+          ? "İnternette bulundu: " + [bulunan.marka, bulunan.ad].filter(Boolean).join(" ")
+          : "İnternette bu barkod kayıtlı değil — bilgileri elle yazacaksın.";
+      });
+    }
   }
 }
 
-function yeniKayitBarkodla(barkod){
+function yeniKayitBarkodla(barkod, internettenGelen){
   detayAc(null);
   $("#fBarkod").value = barkod;
   barkodIpucuTazele();
   markaOner(barkod);
-  urunAdiSor(barkod);
+
+  // Sonuç ekranında zaten arandıysa tekrar sormayalım
+  if(internettenGelen){
+    if(internettenGelen.marka && !$("#fMarka").value.trim()) $("#fMarka").value = internettenGelen.marka;
+    const sadeAd = urunAdiSadelestir(internettenGelen.ad, internettenGelen.marka);
+    if(sadeAd && !$("#fIsim").value.trim()) $("#fIsim").value = sadeAd;
+    $("#barkodIpucu").textContent = "İnternetten bulundu, yanlışsa değiştir.";
+  } else if(internettenGelen === undefined){
+    urunAdiSor(barkod);
+  }
 }
 
 /* Barkod önekinden markayı önerir (yalnız marka alanı boşsa). */
@@ -1462,33 +1610,70 @@ function barkodIpucuTazele(mesaj){
 /* İnternette açık ürün veritabanına sorar. Bağlantı yoksa veya ürün
    kayıtlı değilse sessizce vazgeçer — Türk oje markaları çoğunlukla
    bu veritabanlarında yok. */
-async function urunAdiSor(barkod){
-  if(!navigator.onLine) return;
-  const ipucu = $("#barkodIpucu");
-  const oncekiMetin = ipucu.textContent;
-  ipucu.textContent = "İnternette aranıyor...";
+/* Açık ürün veritabanlarına sorar. Bulursa {ad, marka}, bulamazsa null.
+   İki kaynak denenir: kozmetik veritabanı, sonra genel ürün veritabanı. */
+async function urunSorgula(barkod){
+  if(!navigator.onLine) return null;
 
-  const kesici = new AbortController();
-  const zaman = setTimeout(() => kesici.abort(), 6000);
-  try {
-    const adres = "https://world.openbeautyfacts.org/api/v2/product/" +
-                  encodeURIComponent(barkod) + ".json?fields=product_name,brands";
-    const cevap = await fetch(adres, {signal:kesici.signal});
-    if(!cevap.ok) throw new Error("bulunamadı");
-    const veri = await cevap.json();
-    const urun = veri && veri.product;
-    const ad = urun && (urun.product_name || "").trim();
-    const marka = urun && (urun.brands || "").split(",")[0].trim();
-    if(!ad && !marka) throw new Error("boş");
+  const kaynaklar = [
+    "https://world.openbeautyfacts.org/api/v2/product/",
+    "https://world.openfoodfacts.org/api/v2/product/"
+  ];
 
-    if(marka && !$("#fMarka").value.trim()) $("#fMarka").value = marka;
-    if(ad && !$("#fIsim").value.trim()) $("#fIsim").value = ad;
-    ipucu.textContent = "İnternetten bulundu, yanlışsa değiştir.";
-  } catch(e){
-    ipucu.textContent = oncekiMetin === "İnternette aranıyor..." ? "" : oncekiMetin;
-  } finally {
-    clearTimeout(zaman);
+  for(const kok of kaynaklar){
+    const kesici = new AbortController();
+    const zaman = setTimeout(() => kesici.abort(), 7000);
+    try {
+      const adres = kok + encodeURIComponent(barkod) + ".json?fields=product_name,brands";
+      const cevap = await fetch(adres, {signal:kesici.signal});
+      if(!cevap.ok) continue;
+      const veri = await cevap.json();
+      const urun = veri && veri.product;
+      if(!urun) continue;
+      const ad = (urun.product_name || "").trim();
+      const marka = (urun.brands || "").split(",")[0].trim();
+      if(ad || marka) return {ad, marka};
+    } catch(e){
+      // bağlantı yok, zaman aşımı veya erişim engeli — sıradaki kaynağa geç
+    } finally {
+      clearTimeout(zaman);
+    }
   }
+  return null;
+}
+
+/* Veritabanı adları "Pastel Nail Polish Oje No: 461" gibi gelir; marka
+   ve genel ürün sözcükleri ayıklanınca geriye işe yarayan kısım kalır. */
+function urunAdiSadelestir(ad, marka){
+  let s = (ad || "").trim();
+  const kucuk = t => t.toLocaleLowerCase("tr");
+
+  if(marka && kucuk(s).startsWith(kucuk(marka.trim()))){
+    s = s.slice(marka.trim().length).trim();
+  }
+  const gereksiz = /^(nail\s*polish|nail\s*enamel|nagellack|vernis|oje|cila)\b[\s\-–—/,:.]*/i;
+  for(let i = 0; i < 4 && gereksiz.test(s); i++) s = s.replace(gereksiz, "").trim();
+  s = s.replace(/[\s\-–—/,:.]*(nail\s*polish|nail\s*enamel|oje)$/i, "").trim();
+  s = s.replace(/^(no[:.]?\s*|nr[:.]?\s*)/i, "").trim();
+
+  return s || (ad || "").trim();
+}
+
+/* Form açıkken: boş alanları doldurur, sonucu ipucu satırında söyler. */
+async function urunAdiSor(barkod){
+  const ipucu = $("#barkodIpucu");
+  if(!navigator.onLine){ ipucu.textContent = "İnternet yok, ürün adı aranamadı."; return; }
+  ipucu.textContent = "İnternette aranıyor…";
+
+  const bulunan = await urunSorgula(barkod);
+  if(!bulunan){
+    ipucu.textContent = "İnternette bu barkod kayıtlı değil — bilgileri elle yaz.";
+    return;
+  }
+  if(bulunan.marka && !$("#fMarka").value.trim()) $("#fMarka").value = bulunan.marka;
+  const sade = urunAdiSadelestir(bulunan.ad, bulunan.marka);
+  if(sade && !$("#fIsim").value.trim()) $("#fIsim").value = sade;
+  ipucu.textContent = "İnternetten bulundu, yanlışsa değiştir.";
 }
 
 /* ================= Özet ================= */
@@ -1731,6 +1916,13 @@ function olaylariBagla(){
   $("#taraDugme").addEventListener("click", () => taramaAc("magaza"));
   $("#barkodTara").addEventListener("click", () => taramaAc("form"));
   $("#kameraKapat").addEventListener("click", taramaKapat);
+  $("#fotoIleOku").addEventListener("click", () => $("#barkodFoto").click());
+  $("#elleYazGec").addEventListener("click", () => elleGirisGoster("Barkod numarasını elle yazabilirsin."));
+  $("#barkodFoto").addEventListener("change", async olay => {
+    const dosya = olay.target.files && olay.target.files[0];
+    olay.target.value = "";
+    if(dosya) await fotoIleBarkodOku(dosya);
+  });
   $("#sonucKapat").addEventListener("click", () => sayfaKapat("#sonucSayfa"));
   $("#fBarkod").addEventListener("input", () => barkodIpucuTazele());
   $("#fBarkod").addEventListener("change", () => {

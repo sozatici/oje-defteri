@@ -162,11 +162,17 @@ kaydedilirken bu önek ile marka eşleştirilip saklanır; sonraki
 taramalarda aynı önek görülürse marka alanı kendiliğinden dolar ve
 tahmin olduğu kullanıcıya söylenir. Eşleşme tablosu yedeğe dahildir.
 
-**İnternetten ad sorma.** Barkod okunduğunda açık ürün veritabanına
-sorulur. Bağlantı yoksa, altı saniyede yanıt gelmezse veya ürün kayıtlı
-değilse sessizce vazgeçilir — hiçbir hata gösterilmez, çünkü sonuç
-bulunamaması bu markalarda olağan durumdur. Yalnız boş alanlar doldurulur;
-kullanıcının yazdığının üzerine yazılmaz.
+**İnternetten ad sorma.** Barkod okunduğunda iki açık ürün
+veritabanı sırayla denenir (kozmetik, sonra genel). Türk oje markalarının
+orada kayıtlı olmayacağı varsayılmıştı; gerçekte kayıtlılar — örneğin
+Pastel 461 tam adıyla dönüyor. Bu yüzden arama hem "koleksiyona ekle"
+formunda hem de "bu oje sende yok" ekranında çalışır ve sonucu
+görünür şekilde bildirir: bulundu, kayıtlı değil, ya da internet yok.
+Sessiz başarısızlık kullanıcıya arama hiç yapılmıyormuş gibi geliyordu.
+
+Gelen ad genellikle "Pastel Nail Polish Oje No: 461" biçimindedir;
+marka adı ve genel ürün sözcükleri ayıklanarak "461"e indirgenir.
+Yalnız boş alanlar doldurulur; kullanıcının yazdığının üzerine yazılmaz.
 
 **Fotoğraftan renk.** Fotoğraf eklendiğinde şişenin ortasına bakılıp
 baskın renk bulunur ve renk alanına yazılır. Cam parlaması, beyaz zemin
@@ -174,6 +180,19 @@ ve etiket elenir. Renksiz ojelerde (siyah, beyaz, gri) en sık tekrar
 eden ton seçilir — burada ortanca parlaklık yanıltıcıdır, beyaz bir
 şişede etiket yazısı sonucu siyaha çeker. Kullanıcı rengi kendisi
 seçtiyse fotoğraf onu ezmez.
+
+**Okuma yöntemi.** Kareler video akışından kendimiz alınır: nişan
+çerçevesine karşılık gelen yatay şerit bir canvas'a kırpılıp okunur.
+Kütüphanenin kendi akış yönetimi (`decodeFromStream`) iPhone'da
+çalışmıyordu; ayrıca sarmalayıcının canvas alan yöntemleri bu sürümde
+ya yok (`decodeFromCanvas`) ya da canvas kabul etmiyor (`decode`). Bu
+yüzden ZXing'in çekirdek API'si kullanılır:
+`HTMLCanvasElementLuminanceSource` → `HybridBinarizer` → `BinaryBitmap`
+→ `MultiFormatReader.decode`. Kırpma hem hızlandırır hem isabeti artırır.
+
+**Yedek yol: fotoğraftan okuma.** Canlı tarama tutmazsa kullanıcı tek
+kare fotoğraf çeker ve aynı çözücüden geçirilir. Kamera ekranında bu
+seçenek ile "numarayı yaz" seçeneği her zaman görünür durur.
 
 **Tarayıcı desteği.** Önce tarayıcının yerleşik barkod okuyucusu
 denenir (Android Chrome'da mevcut ve hızlıdır); yoksa dosyaya gömülü
