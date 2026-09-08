@@ -240,9 +240,25 @@ sonucundaki ürün başlığı ("Beaulis Speed It Hızlı Kurutucu Parlak Cila
 10 ml") çözümlenir. Başlıklarda ürün adı marka ile hacim arasında durur;
 hacimden sonrası Google'ın açıklama metnidir ve ada karıştırılmaz.
 
+Mağaza ürün sayfalarının bilgi tablosu da çözümlenir (Gratis'in "Ürün
+Barkodu / Renk Tonu / Renk Kodu" tablosu gibi). Etiket ve değer aynı
+satırda ya da alt alta olabilir; iki nokta zorunlu değildir. "Renk Kodu:
+312 Red Wine" numaraya ve ada ayrılır, "Renk Tonu: Kırmızı" renk kutusuna
+bir başlangıç rengi verir. Barkod tablodan alınır; alınamazsa metindeki
+13, sonra 12 haneli sayı tercih edilir — yoksa "Ürün Kodu 10634408" gibi
+kısa sayılar barkod sanılıyordu.
+
 Düğmeye basıldığında pano kendiliğinden okunur: kullanıcı Google'da
 kopyalayıp döndüyse yapıştırma adımı hiç olmaz. Tarayıcı pano iznini
 vermezse elle yapıştırma alanı açılır — akış hiçbir durumda tıkanmaz.
+
+**Ürün sayfası neden doğrudan çekilemiyor.** Mağaza siteleri CORS izni
+vermez (gratis.com yanıtında `Access-Control-Allow-Origin` yoktur), bu
+yüzden tarayıcıdaki bir sayfa onların içeriğini okuyamaz. Aşmanın tek
+yolu üçüncü taraf bir vekil sunucu olurdu: sitenin yapısı değişince ya da
+vekil kapanınca bozulacak, sorguları yabancı bir servisten geçirecek bir
+bağımlılık. Kopyala-yapıştır yolu buna karşılık her sitede, her zaman
+çalışıyor ve tek dokunuş fazladan istiyor.
 
 **Alan açılmayan bilgiler nota yazılır.** Hacim ve tarihler için ayrı
 alan açılmadı; "13 ml · Üretim 01/2020 · Son kullanma 01/2025 (süresi

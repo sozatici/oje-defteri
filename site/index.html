@@ -1990,6 +1990,18 @@ function etiketMetniCozumle(ham){
   const bul = re => { const m = metin.match(re); return m ? String(m[1] || "").trim() : ""; };
   const sonuc = {};
 
+  /* Mağaza sitelerindeki ürün tablosu iki biçimde kopyalanır:
+     "Ürün Barkodu: 868..." ya da etiket ve değer ayrı satırlarda.
+     İkisini de aynı kalıpla yakalarız — iki nokta zorunlu değil. */
+  const alan = (etiketler, degerKalibi) => {
+    const re = new RegExp(
+      "(?:^|\\n)\\s*(?:" + etiketler + ")\\s*[:：]?\\s*\\n?\\s*(" + (degerKalibi || "[^\\n]+") + ")",
+      "i"
+    );
+    const m = metin.match(re);
+    return m ? String(m[1]).trim() : "";
+  };
+
   // Google'ın verdiği biçim: "Marka: Pastel"
   sonuc.marka = bul(/(?:Marka|Brand)\s*[:：]\s*([^\n(]+)/i);
   if(!sonuc.marka){
@@ -2000,12 +2012,34 @@ function etiketMetniCozumle(ham){
     }
   }
 
+  // Mağaza ürün tablosu: "Renk Kodu → 312 Red Wine", "Ürün Barkodu → 868…"
+  const renkKodu = alan("Renk\\s*Kodu|Color\\s*Code");
+  if(renkKodu){
+    const m = renkKodu.match(/^(\d{2,4})\s+(.+)$/);
+    if(m){
+      sonuc.numara = m[1];
+      sonuc.renkAdi = m[2].trim();
+    } else if(/^\d{2,4}$/.test(renkKodu)){
+      sonuc.numara = renkKodu;
+    } else {
+      sonuc.renkAdi = renkKodu;
+    }
+  }
+
+  const tabloBarkod = alan("[ÜU]r[üu]n\\s*Barkodu|Barkod|Barcode|EAN", "\\d{8,14}");
+  if(tabloBarkod) sonuc.barkod = barkodDuzelt(tabloBarkod);
+
+  // Tablodaki "Renk Tonu: Kırmızı" renk kutusunu önermeye yarar
+  sonuc.renkTonu = alan("Renk\\s*Tonu|Ton|Colou?r\\s*Tone");
+
   // Ürün / renk numarası
-  let numara = bul(/(?:Renk\s*Numaras[ıi]|Renk\s*No|Color\s*(?:No|Number)|Shade|Numara)\s*[:：]\s*([^\n]+)/i);
-  if(!numara) numara = bul(/\b(?:No|Nr)\s*[:.]?\s*(\d{1,4})\b/i);
-  if(numara){
-    const s = numara.match(/\d{1,4}/);
-    sonuc.numara = s ? s[0] : "";
+  if(!sonuc.numara){
+    let numara = bul(/(?:Renk\s*Numaras[ıi]|Renk\s*No|Color\s*(?:No|Number)|Shade|Numara)\s*[:：]\s*([^\n]+)/i);
+    if(!numara) numara = bul(/\b(?:No|Nr)\s*[:.]?\s*(\d{1,4})\b/i);
+    if(numara){
+      const s = numara.match(/\d{1,4}/);
+      sonuc.numara = s ? s[0] : "";
+    }
   }
 
   // Renk adı: "775 Leafy Green" gibi satırlar ("13 ml" buna benzediği
@@ -2122,9 +2156,14 @@ function etiketMetniCozumle(ham){
   sonuc.uretim = tarihCikar(bul(/(?:Üretim\s*Tarihi[^:：\n]*|Prd|PRD|Üretim)\s*[:：]\s*([^\n]+)/i));
   sonuc.sonKullanma = tarihCikar(bul(/(?:Son\s*Kullanma\s*Tarihi[^:：\n]*|Exp|EXP|SKT|TETU)\s*[:：]\s*([^\n]+)/i));
 
-  // Barkod: 8-13 haneli sayı
-  const barkodAdayi = metin.match(/\b(\d{8,13})\b/);
-  if(barkodAdayi) sonuc.barkod = barkodDuzelt(barkodAdayi[1]);
+  // Barkod: tabloda açıkça yazmadıysa metinden aranır. Gerçek barkodlar
+  // 13 (EAN-13) veya 12 hanedir; "Ürün Kodu 10634408" gibi kısa sayılar
+  // barkod sanılmamalı, o yüzden uzunluk sırasıyla denenir.
+  if(!sonuc.barkod){
+    const adaylar = metin.match(/\b\d{13}\b/) || metin.match(/\b\d{12}\b/) ||
+                    metin.match(/\b\d{8,14}\b/);
+    if(adaylar) sonuc.barkod = barkodDuzelt(adaylar[0]);
+  }
 
   // Fiyat
   const fiyat = metin.match(/(?:₺|TL)\s*(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*(?:₺|TL)/i);
@@ -2132,6 +2171,31 @@ function etiketMetniCozumle(ham){
 
   const doluMu = Object.values(sonuc).some(d => d);
   return doluMu ? sonuc : null;
+}
+
+/* Ürün sayfasındaki renk tonu adından bir başlangıç rengi. Kesin renk
+   değil, yalnız kullanıcının ince ayar yapacağı makul bir nokta. */
+const TON_RENKLERI = [
+  [/k[ıi]rm[ıi]z[ıi]|red/i,            "#b3132a"],
+  [/bordo|\bwine\b|şarap/i,        "#5c1020"],
+  [/pembe|pink|fu[şs]ya|fuchsia/i,      "#e8607f"],
+  [/nude|ten|bej|beige/i,               "#d9a689"],
+  [/kahve|coffee|brown|kahverengi/i,    "#3b2220"],
+  [/turuncu|orange/i,                   "#e07b39"],
+  [/sar[ıi]|yellow|alt[ıi]n|gold/i,     "#e8c548"],
+  [/ye[şs]il|green/i,                   "#4f9e63"],
+  [/mavi|blue|lacivert|navy/i,          "#2f6fae"],
+  [/mor|purple|lila|lilac/i,            "#6b4fa8"],
+  [/siyah|black/i,                      "#1c1a1d"],
+  [/beyaz|white|[şs]effaf|transparan/i, "#f4f1ee"],
+  [/gri|grey|gray|g[üu]m[üu][şs]/i,     "#8d8288"]
+];
+
+function tondanRenk(ton){
+  const t = String(ton || "").trim();
+  if(!t) return "";
+  for(const [kalip, hex] of TON_RENKLERI) if(kalip.test(t)) return hex;
+  return "";
 }
 
 /* Alan açmadığımız bilgiler (hacim, tarihler) nota yazılır. */
@@ -2165,6 +2229,15 @@ function cozumuFormaUygula(c){
   yaz("#fIsim", isim);
   yaz("#fBarkod", c.barkod);
   yaz("#fFiyat", c.fiyat);
+
+  // Renk tonu yazılıysa renk kutusunu oradan başlat (kullanıcı elle
+  // seçtiyse dokunma; fotoğraftan gelen renk daha güvenilirdir)
+  const tonRengi = tondanRenk(c.renkTonu);
+  if(tonRengi && duzenlenen && !duzenlenen.renkElleSecildi && !duzenlenen.foto){
+    $("#fRenk").value = tonRengi;
+    renkAdiniGuncelle();
+    sayi++;
+  }
 
   const not = cozumdenNot(c);
   if(not){
