@@ -1,0 +1,7 @@
+# Yerel geliştirme
+.claude/launch.json
+__pycache__/
+*.pyc
+
+# Yedek dosyaları kişiseldir, depoya girmez
+oje-defteri-yedek-*.json

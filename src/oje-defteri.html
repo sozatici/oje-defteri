@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f7eef0">
+<title>Oje Defteri</title>
+<!-- Web adresinden açıldığında ana ekrana eklenip uygulama gibi çalışır.
+     Dosyadan açıldığında bu satırlar sessizce yok sayılır. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="ikon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="ikon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Oje Defteri">
+<meta name="description" content="Oje koleksiyonu takip defteri">
+<style>
+:root{
+  --zemin:#faf5f6;
+  --kart:#ffffff;
+  --metin:#2e2429;
+  --soluk:#8b7b83;
+  --cizgi:#ece0e4;
+  --vurgu:#c04f72;
+  --vurgu-yumusak:#f7e6eb;
+  --golge:0 1px 3px rgba(46,36,41,.08), 0 6px 18px rgba(46,36,41,.05);
+  --yuvarlak:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --zemin:#191317;
+    --kart:#241c21;
+    --metin:#f2e9ed;
+    --soluk:#a9959e;
+    --cizgi:#382c33;
+    --vurgu:#e88ba8;
+    --vurgu-yumusak:#3a252e;
+    --golge:0 1px 3px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--zemin);
+  color:var(--metin);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* ---------- Üst çubuk ---------- */
+header{
+  position:sticky;top:0;z-index:30;
+  background:var(--zemin);
+  border-bottom:1px solid var(--cizgi);
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+}
+.ust{display:flex;align-items:center;gap:10px}
+.logo{font-size:20px;font-weight:700;letter-spacing:-.02em;flex:1;margin:0}
+.logo span{color:var(--vurgu)}
+.ust-dugme{
+  padding:8px 12px;border-radius:999px;background:var(--kart);
+  border:1px solid var(--cizgi);font-size:14px;font-weight:600;color:var(--soluk);
+}
+.ust-dugme:hover{color:var(--vurgu);border-color:var(--vurgu)}
+
+/* ---------- Yedek şeridi ---------- */
+.serit{
+  display:none;margin:10px 14px 0;padding:12px 14px;
+  background:var(--vurgu-yumusak);border-radius:12px;
+  font-size:14px;display:none;align-items:center;gap:10px;
+}
+.serit.gorunur{display:flex}
+.serit p{margin:0;flex:1}
+.serit button{font-size:14px;font-weight:700;color:var(--vurgu);text-decoration:underline}
+.serit .kapat{color:var(--soluk);text-decoration:none;font-size:20px;line-height:1;padding:0 4px}
+
+.uyari{
+  margin:10px 14px 0;padding:12px 14px;border-radius:12px;font-size:14px;
+  background:#fde8e8;color:#8c2020;border:1px solid #f6c9c9;
+}
+@media (prefers-color-scheme: dark){ .uyari{background:#3a1e1e;color:#f4b8b8;border-color:#5a2c2c} }
+
+/* ---------- Filtreler ---------- */
+.filtreler{padding:10px 14px 0;display:none}
+.filtreler.gorunur{display:block}
+.ara{
+  width:100%;padding:11px 14px;border-radius:999px;
+  border:1px solid var(--cizgi);background:var(--kart);
+  box-shadow:var(--golge);
+}
+.ara:focus{outline:2px solid var(--vurgu);outline-offset:1px}
+.rozetler{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.rozetler::-webkit-scrollbar{display:none}
+.rozet{
+  flex:0 0 auto;padding:7px 13px;border-radius:999px;font-size:13.5px;font-weight:600;
+  background:var(--kart);border:1px solid var(--cizgi);color:var(--soluk);white-space:nowrap;
+}
+.rozet.secili{background:var(--vurgu);border-color:var(--vurgu);color:#fff}
+.rozet .nokta{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.satir2{display:flex;gap:8px;align-items:center;padding-bottom:4px}
+.satir2 select{
+  flex:1;min-width:0;padding:8px 10px;border-radius:10px;
+  border:1px solid var(--cizgi);background:var(--kart);font-size:14px;
+}
+.sayac{padding:8px 14px 0;font-size:13px;color:var(--soluk)}
+
+/* ---------- Izgara ---------- */
+main{padding:12px 14px 96px}
+.izgara{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:12px}
+.oje{
+  background:var(--kart);border-radius:var(--yuvarlak);overflow:hidden;
+  box-shadow:var(--golge);text-align:left;width:100%;display:block;
+  border:1px solid var(--cizgi);
+}
+.oje:active{transform:scale(.98)}
+.oje .gorsel{position:relative;aspect-ratio:1/1;background-size:cover;background-position:center}
+.oje .durum{
+  position:absolute;left:6px;bottom:6px;padding:3px 8px;border-radius:999px;
+  font-size:11px;font-weight:700;background:rgba(255,255,255,.92);color:#2e2429;
+  backdrop-filter:blur(4px);
+}
+.oje .bilgi{padding:8px 10px 10px}
+.oje .marka{font-size:11px;color:var(--soluk);text-transform:uppercase;letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oje .isim{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bitmis .gorsel{opacity:.45}
+
+/* ---------- Boş durumlar ---------- */
+.bos{text-align:center;padding:56px 24px;color:var(--soluk)}
+.bos .buyuk{font-size:44px;margin-bottom:12px}
+.bos h2{color:var(--metin);font-size:19px;margin:0 0 8px}
+.bos p{margin:0 auto 20px;max-width:320px;font-size:14.5px}
+
+/* ---------- Düğmeler ---------- */
+.birincil{
+  background:var(--vurgu);color:#fff;padding:13px 22px;border-radius:999px;
+  font-weight:700;font-size:15px;box-shadow:var(--golge);
+}
+.ikincil{
+  background:var(--kart);color:var(--metin);padding:13px 22px;border-radius:999px;
+  font-weight:600;font-size:15px;border:1px solid var(--cizgi);
+}
+.tehlike{color:#c0392b}
+.ekle{
+  position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:40;
+  width:58px;height:58px;border-radius:50%;background:var(--vurgu);color:#fff;
+  font-size:30px;line-height:1;box-shadow:0 6px 20px rgba(192,79,114,.42);
+}
+
+/* ---------- Tam ekran sayfalar ---------- */
+.sayfa{
+  position:fixed;inset:0;z-index:50;background:var(--zemin);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;
+}
+.sayfa.acik{display:block}
+.sayfa-ust{
+  position:sticky;top:0;background:var(--zemin);border-bottom:1px solid var(--cizgi);
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:12px;z-index:5;
+}
+.sayfa-ust h2{margin:0;font-size:17px;flex:1}
+.sayfa-govde{padding:16px 14px calc(40px + env(safe-area-inset-bottom))}
+
+label{display:block;margin-bottom:14px}
+label .etiket{display:block;font-size:13px;font-weight:600;color:var(--soluk);margin-bottom:6px}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;padding:12px 14px;border-radius:12px;
+  border:1px solid var(--cizgi);background:var(--kart);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--vurgu);outline-offset:1px}
+textarea{min-height:84px;resize:vertical}
+.ikili{display:flex;gap:10px}
+.ikili label{flex:1}
+
+.renk-satir{display:flex;align-items:center;gap:12px}
+input[type=color]{
+  width:64px;height:64px;padding:0;border:1px solid var(--cizgi);
+  border-radius:14px;background:var(--kart);cursor:pointer;flex:0 0 auto;
+}
+.renk-adi{font-size:14px;color:var(--soluk)}
+.hazir-renkler{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.hazir-renkler button{width:32px;height:32px;border-radius:50%;border:1px solid var(--cizgi)}
+
+.foto-alan{
+  border:1.5px dashed var(--cizgi);border-radius:var(--yuvarlak);padding:18px;
+  text-align:center;color:var(--soluk);font-size:14px;background:var(--kart);
+}
+.foto-onizleme{width:100%;max-width:240px;border-radius:12px;display:block;margin:0 auto 12px}
+
+.dugme-satir{display:flex;gap:10px;margin-top:22px}
+.dugme-satir>*{flex:1}
+
+/* ---------- Özet ---------- */
+.kutular{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.kutu{background:var(--kart);border:1px solid var(--cizgi);border-radius:var(--yuvarlak);padding:16px;box-shadow:var(--golge)}
+.kutu .sayi{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kutu .alt{font-size:12.5px;color:var(--soluk);margin-top:2px}
+.bolum-baslik{font-size:15px;font-weight:700;margin:24px 0 10px}
+.liste{background:var(--kart);border:1px solid var(--cizgi);border-radius:var(--yuvarlak);overflow:hidden}
+.liste-satir{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--cizgi);font-size:14.5px}
+.liste-satir:last-child{border-bottom:none}
+.liste-satir .sag{margin-left:auto;color:var(--soluk);font-size:13.5px}
+.kucuk-renk{width:22px;height:22px;border-radius:6px;border:1px solid var(--cizgi);flex:0 0 auto;background-size:cover;background-position:center}
+.aciklama{font-size:13.5px;color:var(--soluk);margin:8px 2px 0}
+
+.ayar-blok{background:var(--kart);border:1px solid var(--cizgi);border-radius:var(--yuvarlak);padding:16px;margin-bottom:14px}
+.ayar-blok h3{margin:0 0 6px;font-size:15px}
+.ayar-blok p{margin:0 0 14px;font-size:13.5px;color:var(--soluk)}
+
+.bildirim{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(88px + env(safe-area-inset-bottom));z-index:80;
+  background:var(--metin);color:var(--zemin);padding:12px 18px;border-radius:999px;
+  font-size:14px;font-weight:600;box-shadow:var(--golge);max-width:88vw;text-align:center;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.bildirim.gorunur{opacity:1}
+
+/* ---------- Barkod tarama ---------- */
+.tara-dugme{
+  position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;
+  width:58px;height:58px;border-radius:50%;background:var(--kart);
+  border:1px solid var(--cizgi);box-shadow:var(--golge);
+  display:flex;align-items:center;justify-content:center;
+}
+.tara-dugme svg{width:26px;height:26px;stroke:var(--vurgu);fill:none;stroke-width:2;stroke-linecap:round}
+
+.kamera-sayfa{background:#000}
+.kamera-sayfa .sayfa-ust{background:rgba(0,0,0,.72);border-bottom:none;color:#fff}
+.kamera-sayfa .sayfa-ust h2{color:#fff}
+.kamera-sayfa .ust-dugme{background:rgba(255,255,255,.16);border-color:transparent;color:#fff}
+.kamera-kutu{position:relative;width:100%;height:calc(100vh - 64px);overflow:hidden;background:#000}
+.kamera-kutu video{width:100%;height:100%;object-fit:cover;display:block}
+.nisan{
+  position:absolute;left:8%;right:8%;top:50%;transform:translateY(-50%);
+  height:150px;border:2px solid rgba(255,255,255,.85);border-radius:14px;
+  box-shadow:0 0 0 100vmax rgba(0,0,0,.45);
+}
+.nisan::after{
+  content:"";position:absolute;left:6px;right:6px;top:50%;height:2px;
+  background:var(--vurgu);box-shadow:0 0 8px var(--vurgu);
+}
+.kamera-yazi{
+  position:absolute;left:0;right:0;bottom:26px;text-align:center;color:#fff;
+  font-size:14.5px;padding:0 24px;text-shadow:0 1px 3px rgba(0,0,0,.9);
+}
+.kamera-hata{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;color:#fff;text-align:center;padding:28px;
+}
+
+/* ---------- Barkod sonucu ---------- */
+.sonuc-kart{
+  background:var(--kart);border:1px solid var(--cizgi);border-radius:var(--yuvarlak);
+  padding:16px;box-shadow:var(--golge);display:flex;gap:14px;align-items:flex-start;
+}
+.sonuc-kart .buyuk-renk{
+  width:72px;height:72px;border-radius:12px;flex:0 0 auto;
+  border:1px solid var(--cizgi);background-size:cover;background-position:center;
+}
+.sonuc-kart .satir{font-size:13.5px;color:var(--soluk);margin-top:3px}
+.sonuc-kart h3{margin:0;font-size:16px}
+.barkod-metin{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:13px;color:var(--soluk);letter-spacing:.03em;
+}
+.barkod-satir{display:flex;gap:8px;align-items:center}
+.barkod-satir input{flex:1}
+.barkod-satir button{
+  flex:0 0 auto;padding:12px 14px;border-radius:12px;background:var(--vurgu-yumusak);
+  color:var(--vurgu);font-weight:700;font-size:14px;border:1px solid transparent;
+}
+.ipucu{font-size:12.5px;color:var(--soluk);margin:6px 2px 0}
+.aranyor{display:inline-block;font-size:13px;color:var(--soluk)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ust">
+    <h1 class="logo">Oje <span>Defteri</span></h1>
+    <button class="ust-dugme" id="ozetAc">Özet</button>
+    <button class="ust-dugme" id="ayarAc">Yedek</button>
+  </div>
+</header>
+
+<div class="serit" id="yedekSerit">
+  <p>Uzun süredir yedek almadın. Koleksiyonu kaybetmemek için yedek al.</p>
+  <button id="seritYedek">Yedek al</button>
+  <button class="kapat" id="seritKapat" aria-label="Kapat">×</button>
+</div>
+
+<div class="uyari" id="depoUyari" hidden></div>
+
+<div class="filtreler" id="filtreler">
+  <input type="text" class="ara" id="ara" placeholder="Marka, isim veya notta ara..." autocomplete="off">
+  <div class="rozetler" id="durumRozetleri"></div>
+  <div class="satir2">
+    <select id="markaSecim"><option value="">Tüm markalar</option></select>
+    <select id="renkSecim"><option value="">Tüm renkler</option></select>
+    <select id="siralama">
+      <option value="eklenme">Son eklenen</option>
+      <option value="alim">Alım tarihi</option>
+      <option value="marka">Marka</option>
+      <option value="renk">Renk tonu</option>
+    </select>
+  </div>
+</div>
+<div class="sayac" id="sayac"></div>
+
+<main>
+  <div class="izgara" id="izgara"></div>
+  <div class="bos" id="bosEkran" hidden></div>
+</main>
+
+<button class="tara-dugme" id="taraDugme" aria-label="Barkod tara" title="Barkod tara">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+    <path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/>
+  </svg>
+</button>
+<button class="ekle" id="ekleDugme" aria-label="Yeni oje ekle">+</button>
+
+<!-- Detay / düzenleme -->
+<section class="sayfa" id="detaySayfa">
+  <div class="sayfa-ust">
+    <button class="ust-dugme" id="detayKapat">‹ Geri</button>
+    <h2 id="detayBaslik">Yeni oje</h2>
+    <button class="ust-dugme" id="kaydet" style="color:var(--vurgu);border-color:var(--vurgu)">Kaydet</button>
+  </div>
+  <div class="sayfa-govde">
+    <label>
+      <span class="etiket">Renk</span>
+      <div class="renk-satir">
+        <input type="color" id="fRenk" value="#c04f72">
+        <div>
+          <div class="renk-adi" id="renkAdi"></div>
+          <div class="hazir-renkler" id="hazirRenkler"></div>
+        </div>
+      </div>
+    </label>
+
+    <label>
+      <span class="etiket">Barkod</span>
+      <div class="barkod-satir">
+        <input type="text" id="fBarkod" inputmode="numeric" placeholder="Şişenin altındaki numara" autocomplete="off">
+        <button type="button" id="barkodTara">Tara</button>
+      </div>
+      <p class="ipucu" id="barkodIpucu"></p>
+    </label>
+
+    <label>
+      <span class="etiket">Marka</span>
+      <input type="text" id="fMarka" list="markaListesi" placeholder="Örn. Flormar" autocomplete="off">
+      <datalist id="markaListesi"></datalist>
+    </label>
+
+    <label>
+      <span class="etiket">İsim veya numara</span>
+      <input type="text" id="fIsim" placeholder="Örn. 412 / Gül Kurusu" autocomplete="off">
+    </label>
+
+    <label>
+      <span class="etiket">Durum</span>
+      <select id="fDurum"></select>
+    </label>
+
+    <div class="ikili">
+      <label>
+        <span class="etiket">Alım tarihi</span>
+        <input type="date" id="fAlim">
+      </label>
+      <label>
+        <span class="etiket">Fiyat (TL)</span>
+        <input type="number" id="fFiyat" min="0" step="0.01" inputmode="decimal" placeholder="—">
+      </label>
+    </div>
+
+    <label id="bitisAlani" hidden>
+      <span class="etiket">Bitiş / atılma tarihi</span>
+      <input type="date" id="fBitis">
+    </label>
+
+    <label>
+      <span class="etiket">Fotoğraf</span>
+      <div class="foto-alan">
+        <img class="foto-onizleme" id="fotoOnizleme" hidden alt="Oje fotoğrafı">
+        <input type="file" id="fFoto" accept="image/*" hidden>
+        <button type="button" class="ikincil" id="fotoSec">Fotoğraf ekle</button>
+        <button type="button" class="ikincil tehlike" id="fotoSil" hidden>Fotoğrafı kaldır</button>
+        <p style="margin:10px 0 0;font-size:12.5px">Telefonda kamera veya galeri açılır.</p>
+      </div>
+    </label>
+
+    <label>
+      <span class="etiket">Not</span>
+      <textarea id="fNot" placeholder="Örn. iki katta tam kapatıyor, çok seviyorum"></textarea>
+    </label>
+
+    <div class="dugme-satir">
+      <button class="ikincil tehlike" id="sil" hidden>Bu ojeyi sil</button>
+    </div>
+  </div>
+</section>
+
+<!-- Özet -->
+<section class="sayfa" id="ozetSayfa">
+  <div class="sayfa-ust">
+    <button class="ust-dugme" id="ozetKapat">‹ Geri</button>
+    <h2>Özet</h2>
+  </div>
+  <div class="sayfa-govde" id="ozetGovde"></div>
+</section>
+
+<!-- Yedek -->
+<section class="sayfa" id="ayarSayfa">
+  <div class="sayfa-ust">
+    <button class="ust-dugme" id="ayarKapat">‹ Geri</button>
+    <h2>Yedek</h2>
+  </div>
+  <div class="sayfa-govde">
+    <div class="ayar-blok">
+      <h3>Yedek al</h3>
+      <p id="yedekDurum"></p>
+      <button class="birincil" id="yedekAl" style="width:100%">Yedek dosyasını indir</button>
+      <p style="margin:12px 0 0">Telefonu değiştirdiğinde bu dosyayı yeni telefona taşıyıp geri yükleyebilirsin.</p>
+    </div>
+    <div class="ayar-blok">
+      <h3>Yedekten yükle</h3>
+      <p>Seçeceğin yedek dosyası, şu anki koleksiyonun <strong>yerine geçer</strong>. Önce onay istenir.</p>
+      <input type="file" id="yedekDosya" accept="application/json,.json" hidden>
+      <button class="ikincil" id="yedekYukle" style="width:100%">Yedek dosyası seç</button>
+    </div>
+    <div class="ayar-blok">
+      <h3>Koleksiyon hakkında</h3>
+      <p id="depoBilgi"></p>
+    </div>
+  </div>
+</section>
+
+<!-- Kamera / barkod tarama -->
+<section class="sayfa kamera-sayfa" id="kameraSayfa">
+  <div class="sayfa-ust">
+    <button class="ust-dugme" id="kameraKapat">‹ Kapat</button>
+    <h2 id="kameraBaslik">Barkodu okut</h2>
+  </div>
+  <div class="kamera-kutu" id="kameraKutu">
+    <video id="kameraGoruntu" playsinline muted></video>
+    <div class="nisan" id="kameraNisan"></div>
+    <p class="kamera-yazi" id="kameraYazi">Şişenin altındaki barkodu çerçeveye getir</p>
+    <div class="kamera-hata" id="kameraHata" hidden></div>
+  </div>
+</section>
+
+<!-- Barkod sonucu -->
+<section class="sayfa" id="sonucSayfa">
+  <div class="sayfa-ust">
+    <button class="ust-dugme" id="sonucKapat">‹ Geri</button>
+    <h2 id="sonucBaslik">Sonuç</h2>
+  </div>
+  <div class="sayfa-govde" id="sonucGovde"></div>
+</section>
+
+<div class="bildirim" id="bildirim"></div>
+
+<script>/*__BARKOD_KUTUPHANESI__*/</script>
+
+<script>
+"use strict";
+
+/* ================= Sabitler ================= */
+
+const DURUMLAR = [
+  {id:"acilmamis", ad:"Açılmamış", renk:"#7c9cd1"},
+  {id:"kullanimda", ad:"Kullanımda", renk:"#4fae7a"},
+  {id:"bitti",      ad:"Bitti",      renk:"#a08cc4"},
+  {id:"atildi",     ad:"Atıldı",     renk:"#9b8f95"}
+];
+const DURUM_ADI = Object.fromEntries(DURUMLAR.map(d => [d.id, d.ad]));
+
+const RENK_AILELERI = [
+  {id:"kirmizi", ad:"Kırmızı"},
+  {id:"pembe",   ad:"Pembe"},
+  {id:"nude",    ad:"Nude"},
+  {id:"kahve",   ad:"Kahve"},
+  {id:"turuncu", ad:"Turuncu"},
+  {id:"sari",    ad:"Sarı"},
+  {id:"yesil",   ad:"Yeşil"},
+  {id:"mavi",    ad:"Mavi"},
+  {id:"mor",     ad:"Mor"},
+  {id:"notr",    ad:"Siyah / Beyaz / Gri"}
+];
+const AILE_ADI = Object.fromEntries(RENK_AILELERI.map(r => [r.id, r.ad]));
+
+const HAZIR_RENKLER = ["#b3132a","#e8607f","#f2a3b3","#d9a689","#e07b39",
+  "#e8c548","#4f9e63","#2f6fae","#6b4fa8","#1c1a1d","#f4f1ee","#8d8288"];
+
+const FOTO_MAX_KENAR = 800;
+const FOTO_KALITE = 0.78;
+const YEDEK_HATIRLATMA_GUN = 14;
+const YEDEK_SURUM = 1;
+
+/* ================= Depo (IndexedDB) ================= */
+
+const Depo = (() => {
+  let vt = null;
+  let mod = "yok";   // "idb" | "ls" | "yok"
+
+  function ac(){
+    return new Promise((coz, red) => {
+      let istek;
+      try { istek = indexedDB.open("ojeDefteri", 1); }
+      catch(e){ return red(e); }
+      istek.onupgradeneeded = () => {
+        const db = istek.result;
+        if(!db.objectStoreNames.contains("ojeler")) db.createObjectStore("ojeler", {keyPath:"id"});
+        if(!db.objectStoreNames.contains("ayarlar")) db.createObjectStore("ayarlar", {keyPath:"anahtar"});
+      };
+      istek.onsuccess = () => coz(istek.result);
+      istek.onerror   = () => red(istek.error);
+      istek.onblocked = () => red(new Error("Veritabanı başka bir sekmede açık."));
+    });
+  }
+
+  function islem(magaza, kip, isFn){
+    return new Promise((coz, red) => {
+      if(!vt) return red(new Error("kapalı"));
+      let t;
+      try { t = vt.transaction(magaza, kip); }
+      catch(e){ return red(e); }
+      const istek = isFn(t.objectStore(magaza));
+      t.onerror = () => red(t.error);
+      t.onabort = () => red(t.error || new Error("İşlem iptal edildi."));
+      if(istek) istek.onsuccess = () => coz(istek.result);
+      else t.oncomplete = () => coz();
+    });
+  }
+
+  /* localStorage yedek yolu: IndexedDB engelliyse (Firefox'ta dosyadan
+     açılan sayfalar, bazı iOS durumları) veri yine de kalıcı olur. */
+  const LS_OJE = "ojeDefteri.ojeler";
+  const LS_AYAR = "ojeDefteri.ayar.";
+
+  function lsOku(){
+    try { const h = JSON.parse(localStorage.getItem(LS_OJE) || "[]"); return Array.isArray(h) ? h : []; }
+    catch(e){ return []; }
+  }
+  function lsYaz(liste){ localStorage.setItem(LS_OJE, JSON.stringify(liste)); }
+
+  function lsKullanilabilir(){
+    try {
+      const anahtar = "ojeDefteri.deneme";
+      localStorage.setItem(anahtar, "1");
+      localStorage.removeItem(anahtar);
+      return true;
+    } catch(e){ return false; }
+  }
+
+  async function baslat(){
+    try {
+      vt = await ac();
+      mod = "idb";
+    } catch(e){
+      console.warn("IndexedDB açılamadı:", e);
+      mod = lsKullanilabilir() ? "ls" : "yok";
+    }
+    return mod;
+  }
+
+  return {
+    baslat,
+    get mod(){ return mod; },
+    get calisiyor(){ return mod !== "yok"; },
+
+    tumOjeler: () => mod === "idb"
+      ? islem("ojeler","readonly", m => m.getAll())
+      : Promise.resolve(mod === "ls" ? lsOku() : []),
+
+    kaydet: o => {
+      if(mod === "idb") return islem("ojeler","readwrite", m => m.put(o));
+      if(mod === "ls"){
+        const liste = lsOku();
+        const yer = liste.findIndex(x => x.id === o.id);
+        if(yer >= 0) liste[yer] = o; else liste.push(o);
+        lsYaz(liste);
+      }
+      return Promise.resolve();
+    },
+
+    sil: id => {
+      if(mod === "idb") return islem("ojeler","readwrite", m => m.delete(id));
+      if(mod === "ls") lsYaz(lsOku().filter(o => o.id !== id));
+      return Promise.resolve();
+    },
+
+    hepsiniSil: () => {
+      if(mod === "idb") return islem("ojeler","readwrite", m => m.clear());
+      if(mod === "ls") lsYaz([]);
+      return Promise.resolve();
+    },
+
+    ayarOku: async a => {
+      if(mod === "idb"){
+        try { const s = await islem("ayarlar","readonly", m => m.get(a)); return s ? s.deger : null; }
+        catch(e){ return null; }
+      }
+      if(mod === "ls"){
+        try { const h = localStorage.getItem(LS_AYAR + a); return h === null ? null : JSON.parse(h); }
+        catch(e){ return null; }
+      }
+      return null;
+    },
+
+    ayarYaz: (a, deger) => {
+      if(mod === "idb") return islem("ayarlar","readwrite", m => m.put({anahtar:a, deger}));
+      if(mod === "ls"){
+        try { localStorage.setItem(LS_AYAR + a, JSON.stringify(deger)); } catch(e){}
+      }
+      return Promise.resolve();
+    }
+  };
+})();
+
+/* ================= Barkod tarayıcı =================
+   Önce tarayıcının kendi okuyucusu (Android Chrome'da yerleşik ve hızlı),
+   yoksa dosyaya gömülü ZXing devreye girer. Böylece iPhone dahil her
+   telefonda ve internetsiz çalışır. */
+
+const Tarayici = (() => {
+  const BICIMLER = ["ean_13","ean_8","upc_a","upc_e","code_128","code_39"];
+  let akis = null, zxOkuyucu = null, durduruldu = true, dahiliOkuyucu = null;
+
+  async function yerlesikVar(){
+    if(!("BarcodeDetector" in window)) return false;
+    try {
+      const destek = await window.BarcodeDetector.getSupportedFormats();
+      return BICIMLER.some(b => destek.includes(b));
+    } catch(e){ return false; }
+  }
+
+  async function basla(video, bulundu, hataOldu){
+    durduruldu = false;
+    try {
+      akis = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: {ideal:"environment"}, width:{ideal:1280}, height:{ideal:720} },
+        audio: false
+      });
+    } catch(e){
+      hataOldu(kameraHatasi(e));
+      return;
+    }
+    if(durduruldu){ dur(); return; }
+
+    video.srcObject = akis;
+    try { await video.play(); } catch(e){}
+
+    if(await yerlesikVar()){
+      dahiliOkuyucu = new window.BarcodeDetector({formats:BICIMLER});
+      dongu(video, bulundu);
+    } else if(window.ZXing){
+      try {
+        const ipucu = new Map();
+        ipucu.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+          ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+          ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39
+        ]);
+        ipucu.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        zxOkuyucu = new ZXing.BrowserMultiFormatReader(ipucu, 300);
+        zxOkuyucu.decodeFromStream(akis, video, (sonuc) => {
+          if(sonuc && !durduruldu) bulundu(sonuc.getText());
+        });
+      } catch(e){
+        console.error(e);
+        hataOldu("Barkod okuyucu başlatılamadı. Numarayı elle yazabilirsin.");
+      }
+    } else {
+      hataOldu("Bu tarayıcıda barkod okunamıyor. Numarayı elle yazabilirsin.");
+    }
+  }
+
+  async function dongu(video, bulundu){
+    while(!durduruldu && dahiliOkuyucu){
+      try {
+        const kodlar = await dahiliOkuyucu.detect(video);
+        if(kodlar && kodlar.length && !durduruldu){
+          bulundu(kodlar[0].rawValue);
+          return;
+        }
+      } catch(e){ /* kare atlandı, devam */ }
+      await new Promise(r => setTimeout(r, 220));
+    }
+  }
+
+  function dur(){
+    durduruldu = true;
+    dahiliOkuyucu = null;
+    if(zxOkuyucu){
+      try { zxOkuyucu.reset(); } catch(e){}
+      zxOkuyucu = null;
+    }
+    if(akis){
+      akis.getTracks().forEach(iz => { try { iz.stop(); } catch(e){} });
+      akis = null;
+    }
+  }
+
+  function kameraHatasi(e){
+    const ad = e && e.name;
+    if(ad === "NotAllowedError" || ad === "SecurityError")
+      return "Kamera izni verilmedi. Tarayıcı ayarlarından bu sayfaya kamera izni verebilir ya da numarayı elle yazabilirsin.";
+    if(ad === "NotFoundError" || ad === "OverconstrainedError")
+      return "Kamera bulunamadı. Numarayı elle yazabilirsin.";
+    if(location.protocol === "file:")
+      return "Kamera yalnızca güvenli bir adreste (https) açılabiliyor. Dosyadan açtığında barkod taranamaz; numarayı elle yazabilirsin.";
+    return "Kamera açılamadı. Numarayı elle yazabilirsin.";
+  }
+
+  return { basla, dur };
+})();
+
+/* Barkodu doğrula ve sadeleştir: yalnız rakam, EAN/UPC uzunluğu. */
+function barkodDuzelt(ham){
+  const rakam = String(ham || "").replace(/\D/g, "");
+  return rakam.length >= 6 && rakam.length <= 14 ? rakam : "";
+}
+
+/* GS1 firma öneki — marka öğrenme bu parçaya bakar. */
+function barkodOneki(barkod){
+  return barkod && barkod.length >= 8 ? barkod.slice(0, 7) : "";
+}
+
+/* ================= Yardımcılar ================= */
+
+const $ = s => document.querySelector(s);
+
+function yeniId(){
+  return "oje_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
+}
+
+function hexToHsl(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if(!m) return {h:0,s:0,l:0};
+  const n = parseInt(m[1],16);
+  const r = ((n>>16)&255)/255, g = ((n>>8)&255)/255, b = (n&255)/255;
+  const enB = Math.max(r,g,b), enK = Math.min(r,g,b), fark = enB-enK;
+  let h = 0;
+  if(fark){
+    if(enB === r)      h = ((g-b)/fark) % 6;
+    else if(enB === g) h = (b-r)/fark + 2;
+    else               h = (r-g)/fark + 4;
+    h *= 60; if(h < 0) h += 360;
+  }
+  const l = (enB+enK)/2;
+  const s = fark ? fark/(1-Math.abs(2*l-1)) : 0;
+  return {h, s, l};
+}
+
+function renkAilesi(hex){
+  const {h,s,l} = hexToHsl(hex);
+  if(s <= 0.15 || l <= 0.10 || l >= 0.90) return "notr";
+  if(l < 0.30 && s < 0.62 && (h < 45 || h >= 350)) return "kahve";
+  if(h >= 14 && h < 46 && s < 0.55 && l > 0.45) return "nude";
+  if(h < 12 || h >= 345) return l > 0.62 ? "pembe" : "kirmizi";
+  if(h < 46)  return "turuncu";
+  if(h < 70)  return "sari";
+  if(h < 166) return "yesil";
+  if(h < 256) return "mavi";
+  if(h < 320) return "mor";
+  return "pembe";
+}
+
+function tarihGoster(t){
+  if(!t) return "";
+  const p = t.split("-");
+  return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : t;
+}
+
+function bugun(){ return new Date().toISOString().slice(0,10); }
+
+function ayFarki(bas, son){
+  if(!bas) return null;
+  const a = new Date(bas + "T00:00:00"), b = son ? new Date(son + "T00:00:00") : new Date();
+  if(isNaN(a) || isNaN(b)) return null;
+  return Math.max(0, Math.round((b - a) / (1000*60*60*24*30.44)));
+}
+
+function sureMetni(ay){
+  if(ay === null) return "";
+  if(ay < 1) return "bu ay";
+  if(ay < 12) return ay + " ay";
+  const yil = Math.floor(ay/12), kalan = ay % 12;
+  return kalan ? `${yil} yıl ${kalan} ay` : `${yil} yıl`;
+}
+
+function paraGoster(n){
+  return new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0}).format(n);
+}
+
+let bildirimZaman;
+function bildir(mesaj){
+  const el = $("#bildirim");
+  el.textContent = mesaj;
+  el.classList.add("gorunur");
+  clearTimeout(bildirimZaman);
+  bildirimZaman = setTimeout(() => el.classList.remove("gorunur"), 2600);
+}
+
+/* Fotoğraftaki baskın oje rengini bulur.
+   Şişenin ortasına bakar; cam parlaması, beyaz zemin ve etiket gibi
+   renksiz alanları eler. Renksiz bir oje ise (siyah, beyaz, gri) eleme
+   gevşetilir ve ortanca ton alınır. Bulamazsa null döner. */
+function baskinRenk(dataUrl){
+  return new Promise(coz => {
+    const gorsel = new Image();
+    gorsel.onerror = () => coz(null);
+    gorsel.onload = () => {
+      try {
+        const boy = 80;
+        const tuval = document.createElement("canvas");
+        tuval.width = boy; tuval.height = boy;
+        const ctx = tuval.getContext("2d", {willReadFrequently:true});
+        ctx.drawImage(gorsel, 0, 0, boy, boy);
+        const bas = Math.round(boy*0.22), son = Math.round(boy*0.78);
+        const veri = ctx.getImageData(bas, bas, son-bas, son-bas).data;
+
+        const pikseller = [];
+        for(let i = 0; i < veri.length; i += 4){
+          if(veri[i+3] < 128) continue;
+          const r = veri[i], g = veri[i+1], b = veri[i+2];
+          const {h,s,l} = hexToHsl(rgbToHex(r,g,b));
+          pikseller.push({r,g,b,h,s,l});
+        }
+        if(!pikseller.length) return coz(null);
+
+        const renkli = pikseller.filter(p => p.s >= 0.22 && p.l > 0.08 && p.l < 0.9);
+
+        if(renkli.length >= pikseller.length * 0.10){
+          // Baskın ton kovasını bul, o kovanın ortalamasını al
+          const kovalar = new Map();
+          for(const p of renkli){
+            const k = Math.floor(p.h / 15);
+            if(!kovalar.has(k)) kovalar.set(k, []);
+            kovalar.get(k).push(p);
+          }
+          let enIyi = null;
+          for(const grup of kovalar.values()){
+            if(!enIyi || grup.length > enIyi.length) enIyi = grup;
+          }
+          // Kovanın en doygun kısmını al: cam parlaması rengi soldurur
+          enIyi.sort((a,b) => b.s - a.s);
+          const secilen = enIyi.slice(0, Math.max(1, Math.round(enIyi.length * 0.6)));
+          return coz(ortalamaRenk(secilen));
+        }
+
+        // Renksiz oje (siyah, beyaz, gri): en çok tekrar eden tonu seç.
+        // Ortanca parlaklık burada yanıltıyordu — beyaz bir şişede etiket
+        // yazısı gibi koyu pikseller sonucu siyaha çekiyordu.
+        const tonlar = new Map();
+        for(const p of pikseller){
+          const k = `${p.r >> 4},${p.g >> 4},${p.b >> 4}`;
+          if(!tonlar.has(k)) tonlar.set(k, []);
+          tonlar.get(k).push(p);
+        }
+        let sik = null;
+        for(const grup of tonlar.values()){
+          if(!sik || grup.length > sik.length) sik = grup;
+        }
+        return coz(sik ? ortalamaRenk(sik) : null);
+      } catch(e){
+        coz(null);
+      }
+    };
+    gorsel.src = dataUrl;
+  });
+}
+
+function ortalamaRenk(pikseller){
+  const t = pikseller.reduce((a,p) => ({r:a.r+p.r, g:a.g+p.g, b:a.b+p.b}), {r:0,g:0,b:0});
+  const n = pikseller.length;
+  return rgbToHex(Math.round(t.r/n), Math.round(t.g/n), Math.round(t.b/n));
+}
+
+function rgbToHex(r,g,b){
+  return "#" + [r,g,b].map(x => Math.max(0,Math.min(255,x)).toString(16).padStart(2,"0")).join("");
+}
+
+function fotoKucult(dosya){
+  return new Promise((coz, red) => {
+    const okuyucu = new FileReader();
+    okuyucu.onerror = () => red(new Error("Dosya okunamadı."));
+    okuyucu.onload = () => {
+      const gorsel = new Image();
+      gorsel.onerror = () => red(new Error("Görsel açılamadı."));
+      gorsel.onload = () => {
+        let {width:g, height:y} = gorsel;
+        if(!g || !y) return red(new Error("Görsel boş."));
+        const oran = Math.min(1, FOTO_MAX_KENAR / Math.max(g,y));
+        g = Math.round(g*oran); y = Math.round(y*oran);
+        const tuval = document.createElement("canvas");
+        tuval.width = g; tuval.height = y;
+        const ctx = tuval.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0,g,y);
+        ctx.drawImage(gorsel, 0, 0, g, y);
+        try { coz(tuval.toDataURL("image/jpeg", FOTO_KALITE)); }
+        catch(e){ red(new Error("Görsel dönüştürülemedi.")); }
+      };
+      gorsel.src = okuyucu.result;
+    };
+    okuyucu.readAsDataURL(dosya);
+  });
+}
+
+/* ================= Durum ================= */
+
+let ojeler = [];
+let sonYedek = null;
+let seritKapatildi = false;
+
+let duzenlenen = null;   // düzenlenen kaydın kopyası
+let duzenlenenYeniMi = false;
+
+/* Barkod öneki -> marka. Kullanıcı bir kez yazdıkça kendi kendine dolar. */
+let markaHaritasi = {};
+
+/* Tarama nereden başlatıldı: "magaza" (ana ekran) veya "form" (detay) */
+let taramaKaynagi = "magaza";
+
+const filtre = { ara:"", durum:"", marka:"", renk:"", sira:"eklenme" };
+
+/* ================= Kurulum ================= */
+
+async function baslat(){
+  durumSecenekleriniKur();
+  hazirRenkleriKur();
+  olaylariBagla();
+
+  const mod = await Depo.baslat();
+  if(mod === "yok"){
+    const u = $("#depoUyari");
+    u.hidden = false;
+    u.textContent = "Bu tarayıcıda veri kaydedilemiyor (gizli sekme veya kapalı depolama izni olabilir). " +
+                    "Şimdi eklediklerin sayfayı kapatınca kaybolur.";
+  } else {
+    try { ojeler = await Depo.tumOjeler(); }
+    catch(e){ ojeler = []; bildir("Kayıtlar okunamadı."); }
+    sonYedek = await Depo.ayarOku("sonYedek");
+    const harita = await Depo.ayarOku("markaHaritasi");
+    if(harita && typeof harita === "object") markaHaritasi = harita;
+  }
+  ciz();
+}
+
+function durumSecenekleriniKur(){
+  const rozetKutu = $("#durumRozetleri");
+  const tumu = document.createElement("button");
+  tumu.className = "rozet secili";
+  tumu.dataset.durum = "";
+  tumu.textContent = "Tümü";
+  rozetKutu.appendChild(tumu);
+  for(const d of DURUMLAR){
+    const b = document.createElement("button");
+    b.className = "rozet";
+    b.dataset.durum = d.id;
+    b.innerHTML = `<span class="nokta" style="background:${d.renk}"></span>${d.ad}`;
+    rozetKutu.appendChild(b);
+  }
+  rozetKutu.addEventListener("click", e => {
+    const b = e.target.closest(".rozet");
+    if(!b) return;
+    filtre.durum = b.dataset.durum;
+    rozetKutu.querySelectorAll(".rozet").forEach(x => x.classList.toggle("secili", x === b));
+    ciz();
+  });
+
+  const sec = $("#fDurum");
+  for(const d of DURUMLAR){
+    const o = document.createElement("option");
+    o.value = d.id; o.textContent = d.ad;
+    sec.appendChild(o);
+  }
+
+  const renkSec = $("#renkSecim");
+  for(const r of RENK_AILELERI){
+    const o = document.createElement("option");
+    o.value = r.id; o.textContent = r.ad;
+    renkSec.appendChild(o);
+  }
+}
+
+function hazirRenkleriKur(){
+  const kutu = $("#hazirRenkler");
+  for(const renk of HAZIR_RENKLER){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.style.background = renk;
+    b.setAttribute("aria-label", "Renk " + renk);
+    b.addEventListener("click", () => {
+      $("#fRenk").value = renk;
+      if(duzenlenen) duzenlenen.renkElleSecildi = true;
+      renkAdiniGuncelle();
+    });
+    kutu.appendChild(b);
+  }
+}
+
+/* ================= Çizim ================= */
+
+function suzulmus(){
+  const q = filtre.ara.trim().toLocaleLowerCase("tr");
+  let liste = ojeler.filter(o => {
+    if(filtre.durum && o.durum !== filtre.durum) return false;
+    if(filtre.marka && (o.marka || "") !== filtre.marka) return false;
+    if(filtre.renk && renkAilesi(o.renk) !== filtre.renk) return false;
+    if(q){
+      const metin = `${o.marka || ""} ${o.isim || ""} ${o.not || ""} ${o.barkod || ""}`.toLocaleLowerCase("tr");
+      if(!metin.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const kar = (a,b) => (a || "").localeCompare(b || "", "tr");
+  if(filtre.sira === "eklenme")     liste.sort((a,b) => (b.eklenmeZamani || 0) - (a.eklenmeZamani || 0));
+  else if(filtre.sira === "alim")   liste.sort((a,b) => (b.alimTarihi || "").localeCompare(a.alimTarihi || ""));
+  else if(filtre.sira === "marka")  liste.sort((a,b) => kar(a.marka, b.marka) || kar(a.isim, b.isim));
+  else if(filtre.sira === "renk")   liste.sort((a,b) => hexToHsl(a.renk).h - hexToHsl(b.renk).h);
+  return liste;
+}
+
+function ciz(){
+  markaSecimiTazele();
+  yedekSeridiTazele();
+
+  const izgara = $("#izgara");
+  const bosEkran = $("#bosEkran");
+  const filtreler = $("#filtreler");
+  const sayac = $("#sayac");
+  izgara.innerHTML = "";
+
+  if(ojeler.length === 0){
+    filtreler.classList.remove("gorunur");
+    sayac.textContent = "";
+    bosEkran.hidden = false;
+    bosEkran.innerHTML = `
+      <div class="buyuk">💅</div>
+      <h2>Defter henüz boş</h2>
+      <p>Ojelerini ekle; hangisi var, ne zaman aldın, hangisi bitti hepsi burada dursun.</p>
+      <button class="birincil" id="ilkEkle">İlk ojeyi ekle</button>
+      <p style="margin-top:22px;font-size:13px">Daha önce yedek aldıysan
+        <button id="ilkYedek" style="color:var(--vurgu);font-weight:700;text-decoration:underline">yedekten yükleyebilirsin</button>.
+      </p>`;
+    $("#ilkEkle").addEventListener("click", () => detayAc(null));
+    $("#ilkYedek").addEventListener("click", () => sayfaAc("#ayarSayfa"));
+    return;
+  }
+
+  filtreler.classList.add("gorunur");
+  bosEkran.hidden = true;
+
+  const liste = suzulmus();
+  sayac.textContent = liste.length === ojeler.length
+    ? `${ojeler.length} oje`
+    : `${ojeler.length} ojeden ${liste.length} tanesi gösteriliyor`;
+
+  if(liste.length === 0){
+    bosEkran.hidden = false;
+    bosEkran.innerHTML = `
+      <div class="buyuk">🔍</div>
+      <h2>Eşleşen oje yok</h2>
+      <p>Aramaya veya filtrelere uyan kayıt bulunamadı.</p>
+      <button class="ikincil" id="filtreTemizle">Filtreleri temizle</button>`;
+    $("#filtreTemizle").addEventListener("click", filtreleriTemizle);
+    return;
+  }
+
+  const parca = document.createDocumentFragment();
+  for(const o of liste){
+    const d = DURUMLAR.find(x => x.id === o.durum) || DURUMLAR[1];
+    const bitmis = (o.durum === "bitti" || o.durum === "atildi");
+    const kart = document.createElement("button");
+    kart.className = "oje" + (bitmis ? " bitmis" : "");
+    kart.type = "button";
+    const gorselStil = o.foto ? `background-image:url(${o.foto})` : `background-color:${o.renk}`;
+    kart.innerHTML = `
+      <div class="gorsel" style="${gorselStil}">
+        <span class="durum" style="color:${d.renk}">${d.ad}</span>
+      </div>
+      <div class="bilgi">
+        <div class="marka">${kacis(o.marka) || "&nbsp;"}</div>
+        <div class="isim">${kacis(o.isim) || "İsimsiz"}</div>
+      </div>`;
+    kart.addEventListener("click", () => detayAc(o.id));
+    parca.appendChild(kart);
+  }
+  izgara.appendChild(parca);
+}
+
+function kacis(s){
+  return (s || "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+}
+
+function markaSecimiTazele(){
+  const markalar = [...new Set(ojeler.map(o => (o.marka || "").trim()).filter(Boolean))]
+    .sort((a,b) => a.localeCompare(b,"tr"));
+
+  const sec = $("#markaSecim");
+  const oncekiDeger = filtre.marka;
+  sec.innerHTML = '<option value="">Tüm markalar</option>';
+  for(const m of markalar){
+    const o = document.createElement("option");
+    o.value = m; o.textContent = m;
+    sec.appendChild(o);
+  }
+  sec.value = markalar.includes(oncekiDeger) ? oncekiDeger : "";
+  filtre.marka = sec.value;
+
+  const liste = $("#markaListesi");
+  liste.innerHTML = "";
+  for(const m of markalar){
+    const o = document.createElement("option");
+    o.value = m;
+    liste.appendChild(o);
+  }
+}
+
+function filtreleriTemizle(){
+  filtre.ara = ""; filtre.durum = ""; filtre.marka = ""; filtre.renk = "";
+  $("#ara").value = "";
+  $("#markaSecim").value = "";
+  $("#renkSecim").value = "";
+  document.querySelectorAll("#durumRozetleri .rozet")
+    .forEach(x => x.classList.toggle("secili", x.dataset.durum === ""));
+  ciz();
+}
+
+function yedekSeridiTazele(){
+  const serit = $("#yedekSerit");
+  if(seritKapatildi || ojeler.length === 0 || !Depo.calisiyor){
+    serit.classList.remove("gorunur");
+    return;
+  }
+  const gecen = sonYedek ? (Date.now() - sonYedek) / 86400000 : Infinity;
+  serit.classList.toggle("gorunur", gecen >= YEDEK_HATIRLATMA_GUN);
+  serit.querySelector("p").textContent = sonYedek
+    ? "Son yedeğin üzerinden bir süre geçti. Koleksiyonu kaybetmemek için yedek al."
+    : "Henüz hiç yedek almadın. Telefon değişirse koleksiyon kaybolabilir.";
+}
+
+/* ================= Detay ================= */
+
+function sayfaAc(secici){
+  document.querySelector(secici).classList.add("acik");
+  document.body.style.overflow = "hidden";
+  if(secici === "#ayarSayfa") ayarSayfasiniTazele();
+}
+function sayfaKapat(secici){
+  document.querySelector(secici).classList.remove("acik");
+  if(!document.querySelector(".sayfa.acik")) document.body.style.overflow = "";
+}
+
+function detayAc(id){
+  duzenlenenYeniMi = (id === null);
+  if(duzenlenenYeniMi){
+    duzenlenen = {
+      id: yeniId(), marka:"", isim:"", renk:"#c04f72", barkod:"",
+      alimTarihi: bugun(), fiyat:null, durum:"kullanimda",
+      bitisTarihi:"", foto:null, not:"", eklenmeZamani: Date.now()
+    };
+  } else {
+    const kayit = ojeler.find(o => o.id === id);
+    if(!kayit) return;
+    duzenlenen = {...kayit};
+  }
+
+  $("#detayBaslik").textContent = duzenlenenYeniMi ? "Yeni oje" : "Ojeyi düzenle";
+  $("#fRenk").value  = duzenlenen.renk || "#c04f72";
+  $("#fMarka").value = duzenlenen.marka || "";
+  $("#fIsim").value  = duzenlenen.isim || "";
+  $("#fDurum").value = duzenlenen.durum || "kullanimda";
+  $("#fAlim").value  = duzenlenen.alimTarihi || "";
+  $("#fFiyat").value = (duzenlenen.fiyat ?? "") === null ? "" : (duzenlenen.fiyat ?? "");
+  $("#fBitis").value = duzenlenen.bitisTarihi || "";
+  $("#fNot").value   = duzenlenen.not || "";
+  $("#fBarkod").value = duzenlenen.barkod || "";
+  $("#sil").hidden   = duzenlenenYeniMi;
+
+  fotoGoster(duzenlenen.foto);
+  renkAdiniGuncelle();
+  bitisAlaniniGuncelle();
+  barkodIpucuTazele();
+  sayfaAc("#detaySayfa");
+}
+
+function fotoGoster(veri){
+  const gorsel = $("#fotoOnizleme");
+  const silDugme = $("#fotoSil");
+  const secDugme = $("#fotoSec");
+  if(veri){
+    gorsel.src = veri; gorsel.hidden = false;
+    silDugme.hidden = false;
+    secDugme.textContent = "Fotoğrafı değiştir";
+  } else {
+    gorsel.removeAttribute("src"); gorsel.hidden = true;
+    silDugme.hidden = true;
+    secDugme.textContent = "Fotoğraf ekle";
+  }
+}
+
+function renkAdiniGuncelle(){
+  const hex = $("#fRenk").value;
+  $("#renkAdi").textContent = AILE_ADI[renkAilesi(hex)] + " · " + hex.toUpperCase();
+}
+
+function bitisAlaniniGuncelle(){
+  const durum = $("#fDurum").value;
+  const goster = (durum === "bitti" || durum === "atildi");
+  $("#bitisAlani").hidden = !goster;
+  if(goster && !$("#fBitis").value) $("#fBitis").value = bugun();
+}
+
+async function kaydetTikla(){
+  const fiyatMetin = $("#fFiyat").value.trim();
+  const fiyat = fiyatMetin === "" ? null : Number(fiyatMetin);
+  if(fiyat !== null && (isNaN(fiyat) || fiyat < 0)){
+    bildir("Fiyat geçerli bir sayı olmalı.");
+    return;
+  }
+  const durum = $("#fDurum").value;
+
+  const kayit = {
+    ...duzenlenen,
+    marka: $("#fMarka").value.trim(),
+    isim:  $("#fIsim").value.trim(),
+    renk:  $("#fRenk").value,
+    barkod: barkodDuzelt($("#fBarkod").value),
+    durum,
+    alimTarihi: $("#fAlim").value || "",
+    fiyat,
+    bitisTarihi: (durum === "bitti" || durum === "atildi") ? ($("#fBitis").value || "") : "",
+    not: $("#fNot").value.trim()
+  };
+
+  try {
+    if(Depo.calisiyor) await Depo.kaydet(kayit);
+  } catch(e){
+    console.error(e);
+    if(e && (e.name === "QuotaExceededError" || String(e).includes("quota"))){
+      bildir("Telefonun depolama alanı doldu. Hemen yedek al.");
+      sayfaAc("#ayarSayfa");
+    } else {
+      bildir("Kaydedilemedi. Yedek almanı öneririm.");
+    }
+    return;
+  }
+
+  const yer = ojeler.findIndex(o => o.id === kayit.id);
+  if(yer >= 0) ojeler[yer] = kayit; else ojeler.push(kayit);
+
+  markaOgren(kayit.barkod, kayit.marka);
+
+  sayfaKapat("#detaySayfa");
+  ciz();
+  bildir(duzenlenenYeniMi ? "Oje eklendi" : "Kaydedildi");
+}
+
+async function silTikla(){
+  const ad = [duzenlenen.marka, duzenlenen.isim].filter(Boolean).join(" ") || "Bu oje";
+  if(!confirm(`${ad} silinsin mi? Bu işlem geri alınamaz.`)) return;
+  try {
+    if(Depo.calisiyor) await Depo.sil(duzenlenen.id);
+  } catch(e){ bildir("Silinemedi."); return; }
+  ojeler = ojeler.filter(o => o.id !== duzenlenen.id);
+  sayfaKapat("#detaySayfa");
+  ciz();
+  bildir("Silindi");
+}
+
+/* ================= Barkod akışı ================= */
+
+function taramaAc(kaynak){
+  taramaKaynagi = kaynak;
+  $("#kameraBaslik").textContent = kaynak === "magaza" ? "Bu oje bende var mı?" : "Barkodu okut";
+  $("#kameraYazi").textContent = "Şişenin altındaki barkodu çerçeveye getir";
+  const hata = $("#kameraHata");
+  hata.hidden = true; hata.innerHTML = "";
+  $("#kameraNisan").hidden = false;
+  sayfaAc("#kameraSayfa");
+
+  Tarayici.basla($("#kameraGoruntu"), barkodOkundu, elleGirisGoster);
+}
+
+/* Kamera açılamadığında (izin yok, kamera yok, dosyadan açılmış) tarama
+   çıkmaz sokak olmasın: numarayı buradan elle yazmak mümkün. Tarayıcı
+   penceresi olan prompt() her yerde desteklenmediği için sayfanın
+   kendi alanı kullanılıyor. */
+function elleGirisGoster(mesaj){
+  const hata = $("#kameraHata");
+  $("#kameraNisan").hidden = true;
+  hata.hidden = false;
+  hata.innerHTML = `
+    <p style="margin:0;max-width:330px">${kacis(mesaj || "Barkod numarasını elle yazabilirsin.")}</p>
+    <div class="barkod-satir" style="width:100%;max-width:330px">
+      <input type="text" id="elleBarkod" inputmode="numeric" autocomplete="off"
+             placeholder="Şişenin altındaki numara">
+      <button type="button" id="elleTamam">Tamam</button>
+    </div>`;
+
+  const alan = $("#elleBarkod");
+  const gonder = () => {
+    const barkod = barkodDuzelt(alan.value);
+    if(!barkod){
+      alan.focus();
+      bildir("Bu numara barkoda benzemiyor.");
+      return;
+    }
+    taramaKapat();
+    barkodOkundu(barkod, true);
+  };
+  $("#elleTamam").addEventListener("click", gonder);
+  alan.addEventListener("keydown", e => { if(e.key === "Enter") gonder(); });
+  setTimeout(() => alan.focus(), 100);
+}
+
+function taramaKapat(){
+  Tarayici.dur();
+  const video = $("#kameraGoruntu");
+  video.srcObject = null;
+  sayfaKapat("#kameraSayfa");
+}
+
+function barkodOkundu(ham, elleGirildi){
+  const barkod = barkodDuzelt(ham);
+  if(!barkod) return;
+  if(!elleGirildi){
+    try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
+    taramaKapat();
+  }
+
+  if(taramaKaynagi === "form"){
+    $("#fBarkod").value = barkod;
+    barkodIpucuTazele();
+    markaOner(barkod);
+    urunAdiSor(barkod);
+    bildir("Barkod okundu");
+    return;
+  }
+
+  const eslesen = ojeler.filter(o => o.barkod === barkod);
+  sonucCiz(barkod, eslesen);
+  sayfaAc("#sonucSayfa");
+}
+
+function sonucCiz(barkod, eslesen){
+  const govde = $("#sonucGovde");
+  $("#sonucBaslik").textContent = eslesen.length ? "Bu oje sende var" : "Bu oje sende yok";
+
+  if(eslesen.length){
+    let html = `<p style="margin:0 0 14px;font-size:15px">Bu barkod koleksiyonunda kayıtlı:</p>`;
+    for(const o of eslesen){
+      const gorselStil = o.foto ? `background-image:url(${o.foto})` : `background-color:${o.renk}`;
+      const ad = [o.marka, o.isim].filter(Boolean).join(" ") || "İsimsiz";
+      const durumAdi = DURUM_ADI[o.durum] || "";
+      const alim = o.alimTarihi ? `${tarihGoster(o.alimTarihi)} tarihinde alınmış` : "Alım tarihi girilmemiş";
+      const gecenAy = o.alimTarihi ? ayFarki(o.alimTarihi, null) : null;
+      const sure = (gecenAy !== null && gecenAy >= 1) ? ` · ${sureMetni(gecenAy)} önce` : "";
+      html += `<div class="sonuc-kart" style="margin-bottom:12px">
+          <div class="buyuk-renk" style="${gorselStil}"></div>
+          <div style="flex:1;min-width:0">
+            <h3>${kacis(ad)}</h3>
+            <div class="satir">${durumAdi}</div>
+            <div class="satir">${alim}${sure}</div>
+            ${o.not ? `<div class="satir">“${kacis(o.not)}”</div>` : ""}
+          </div>
+        </div>`;
+    }
+    html += `<p class="barkod-metin" style="margin:16px 2px">${kacis(barkod)}</p>
+      <div class="dugme-satir">
+        <button class="ikincil" id="sonucAc">Kaydı aç</button>
+        <button class="birincil" id="sonucYineTara">Yeni tarama</button>
+      </div>
+      <p class="ipucu">Aynı ojeden bir tane daha aldıysan yine de ekleyebilirsin.</p>
+      <div class="dugme-satir"><button class="ikincil" id="sonucYineEkle">Yine de yeni kayıt ekle</button></div>`;
+    govde.innerHTML = html;
+    $("#sonucAc").addEventListener("click", () => {
+      sayfaKapat("#sonucSayfa");
+      detayAc(eslesen[0].id);
+    });
+    $("#sonucYineTara").addEventListener("click", () => {
+      sayfaKapat("#sonucSayfa");
+      taramaAc("magaza");
+    });
+    $("#sonucYineEkle").addEventListener("click", () => {
+      sayfaKapat("#sonucSayfa");
+      yeniKayitBarkodla(barkod);
+    });
+  } else {
+    const tahmin = markaHaritasi[barkodOneki(barkod)];
+    govde.innerHTML = `
+      <div class="bos" style="padding:36px 8px">
+        <div class="buyuk">🛍️</div>
+        <h2>Bu oje koleksiyonunda yok</h2>
+        <p>${tahmin ? `Barkoda göre markası büyük olasılıkla <strong>${kacis(tahmin)}</strong>.` : "Alırsan hemen kaydedebilirsin."}</p>
+        <p class="barkod-metin">${kacis(barkod)}</p>
+      </div>
+      <div class="dugme-satir">
+        <button class="ikincil" id="sonucYineTara">Yeni tarama</button>
+        <button class="birincil" id="sonucEkle">Koleksiyona ekle</button>
+      </div>`;
+    $("#sonucYineTara").addEventListener("click", () => {
+      sayfaKapat("#sonucSayfa");
+      taramaAc("magaza");
+    });
+    $("#sonucEkle").addEventListener("click", () => {
+      sayfaKapat("#sonucSayfa");
+      yeniKayitBarkodla(barkod);
+    });
+  }
+}
+
+function yeniKayitBarkodla(barkod){
+  detayAc(null);
+  $("#fBarkod").value = barkod;
+  barkodIpucuTazele();
+  markaOner(barkod);
+  urunAdiSor(barkod);
+}
+
+/* Barkod önekinden markayı önerir (yalnız marka alanı boşsa). */
+function markaOner(barkod){
+  const tahmin = markaHaritasi[barkodOneki(barkod)];
+  if(tahmin && !$("#fMarka").value.trim()){
+    $("#fMarka").value = tahmin;
+    barkodIpucuTazele("Marka barkoddan tahmin edildi, yanlışsa değiştir.");
+  }
+}
+
+/* Kaydederken öneki öğrenir, böylece sonraki şişelerde marka hazır gelir. */
+async function markaOgren(barkod, marka){
+  const onek = barkodOneki(barkod);
+  if(!onek || !marka) return;
+  if(markaHaritasi[onek] === marka) return;
+  markaHaritasi[onek] = marka;
+  try { await Depo.ayarYaz("markaHaritasi", markaHaritasi); } catch(e){}
+}
+
+function barkodIpucuTazele(mesaj){
+  const ipucu = $("#barkodIpucu");
+  if(mesaj){ ipucu.textContent = mesaj; return; }
+  const barkod = barkodDuzelt($("#fBarkod").value);
+  if(!barkod){ ipucu.textContent = ""; return; }
+  const ayni = ojeler.filter(o => o.barkod === barkod && o.id !== (duzenlenen && duzenlenen.id));
+  ipucu.textContent = ayni.length
+    ? `Dikkat: bu barkod zaten kayıtlı (${[ayni[0].marka, ayni[0].isim].filter(Boolean).join(" ") || "İsimsiz"}).`
+    : "";
+}
+
+/* İnternette açık ürün veritabanına sorar. Bağlantı yoksa veya ürün
+   kayıtlı değilse sessizce vazgeçer — Türk oje markaları çoğunlukla
+   bu veritabanlarında yok. */
+async function urunAdiSor(barkod){
+  if(!navigator.onLine) return;
+  const ipucu = $("#barkodIpucu");
+  const oncekiMetin = ipucu.textContent;
+  ipucu.textContent = "İnternette aranıyor...";
+
+  const kesici = new AbortController();
+  const zaman = setTimeout(() => kesici.abort(), 6000);
+  try {
+    const adres = "https://world.openbeautyfacts.org/api/v2/product/" +
+                  encodeURIComponent(barkod) + ".json?fields=product_name,brands";
+    const cevap = await fetch(adres, {signal:kesici.signal});
+    if(!cevap.ok) throw new Error("bulunamadı");
+    const veri = await cevap.json();
+    const urun = veri && veri.product;
+    const ad = urun && (urun.product_name || "").trim();
+    const marka = urun && (urun.brands || "").split(",")[0].trim();
+    if(!ad && !marka) throw new Error("boş");
+
+    if(marka && !$("#fMarka").value.trim()) $("#fMarka").value = marka;
+    if(ad && !$("#fIsim").value.trim()) $("#fIsim").value = ad;
+    ipucu.textContent = "İnternetten bulundu, yanlışsa değiştir.";
+  } catch(e){
+    ipucu.textContent = oncekiMetin === "İnternette aranıyor..." ? "" : oncekiMetin;
+  } finally {
+    clearTimeout(zaman);
+  }
+}
+
+/* ================= Özet ================= */
+
+function ozetCiz(){
+  const govde = $("#ozetGovde");
+  if(ojeler.length === 0){
+    govde.innerHTML = `<div class="bos"><div class="buyuk">📊</div>
+      <h2>Henüz özet yok</h2><p>Birkaç oje ekleyince burada toplam sayı, harcama ve dayanma süreleri görünür.</p></div>`;
+    return;
+  }
+
+  const sayim = {};
+  for(const d of DURUMLAR) sayim[d.id] = 0;
+  for(const o of ojeler) if(sayim[o.durum] !== undefined) sayim[o.durum]++;
+
+  const fiyatli = ojeler.filter(o => typeof o.fiyat === "number" && !isNaN(o.fiyat));
+  const toplam = fiyatli.reduce((t,o) => t + o.fiyat, 0);
+  const fiyatsizSayi = ojeler.length - fiyatli.length;
+
+  const markaSayim = {};
+  for(const o of ojeler){
+    const m = (o.marka || "").trim();
+    if(m) markaSayim[m] = (markaSayim[m] || 0) + 1;
+  }
+  const enCok = Object.entries(markaSayim).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+  const uyuyanlar = ojeler
+    .filter(o => o.durum === "acilmamis" && o.alimTarihi && (ayFarki(o.alimTarihi, null) ?? 0) >= 6)
+    .sort((a,b) => (a.alimTarihi || "").localeCompare(b.alimTarihi || ""));
+
+  const suresi = ojeler
+    .filter(o => (o.durum === "bitti" || o.durum === "atildi") && o.alimTarihi && o.bitisTarihi)
+    .map(o => ayFarki(o.alimTarihi, o.bitisTarihi))
+    .filter(a => a !== null);
+  const ortalama = suresi.length ? Math.round(suresi.reduce((t,a) => t+a, 0) / suresi.length) : null;
+
+  const aileSayim = {};
+  for(const o of ojeler){
+    const a = renkAilesi(o.renk);
+    aileSayim[a] = (aileSayim[a] || 0) + 1;
+  }
+  const aileSirali = Object.entries(aileSayim).sort((a,b) => b[1]-a[1]);
+
+  let html = `
+    <div class="kutular">
+      <div class="kutu"><div class="sayi">${ojeler.length}</div><div class="alt">toplam oje</div></div>
+      <div class="kutu"><div class="sayi">${paraGoster(toplam)}</div><div class="alt">toplam harcama</div></div>
+    </div>`;
+
+  if(fiyatsizSayi > 0){
+    html += `<p class="aciklama" style="margin-top:-12px">${fiyatsizSayi} ojenin fiyatı girilmediği için toplama dahil değil.</p>`;
+  }
+
+  html += `<div class="bolum-baslik">Durum dağılımı</div><div class="liste">`;
+  for(const d of DURUMLAR){
+    html += `<div class="liste-satir">
+      <span class="nokta" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.renk}"></span>
+      ${d.ad}<span class="sag">${sayim[d.id]}</span></div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="bolum-baslik">Renk dağılımı</div><div class="liste">`;
+  for(const [aile, adet] of aileSirali){
+    html += `<div class="liste-satir">${AILE_ADI[aile] || aile}<span class="sag">${adet}</span></div>`;
+  }
+  html += `</div>`;
+
+  if(enCok.length){
+    html += `<div class="bolum-baslik">En çok sahip olduğun markalar</div><div class="liste">`;
+    for(const [marka, adet] of enCok){
+      html += `<div class="liste-satir">${kacis(marka)}<span class="sag">${adet} oje</span></div>`;
+    }
+    html += `</div>`;
+  }
+
+  if(ortalama !== null){
+    html += `<div class="bolum-baslik">Dayanma süresi</div>
+      <div class="liste"><div class="liste-satir">Biten ojelerin ortalaması
+      <span class="sag">${sureMetni(ortalama)}</span></div></div>
+      <p class="aciklama">${suresi.length} ojenin alım ve bitiş tarihi girilmiş.</p>`;
+  }
+
+  if(uyuyanlar.length){
+    html += `<div class="bolum-baslik">6 aydır açılmamış (${uyuyanlar.length})</div><div class="liste">`;
+    for(const o of uyuyanlar){
+      const gorselStil = o.foto ? `background-image:url(${o.foto})` : `background-color:${o.renk}`;
+      const ad = [o.marka, o.isim].filter(Boolean).join(" ") || "İsimsiz";
+      html += `<div class="liste-satir">
+        <span class="kucuk-renk" style="${gorselStil}"></span>
+        ${kacis(ad)}<span class="sag">${sureMetni(ayFarki(o.alimTarihi, null))}</span></div>`;
+    }
+    html += `</div><p class="aciklama">Alım tarihinden bu yana geçen süre.</p>`;
+  }
+
+  govde.innerHTML = html;
+}
+
+/* ================= Yedek ================= */
+
+function ayarSayfasiniTazele(){
+  $("#yedekDurum").textContent = sonYedek
+    ? "Son yedek: " + new Date(sonYedek).toLocaleDateString("tr-TR",
+        {day:"numeric", month:"long", year:"numeric"})
+    : "Henüz hiç yedek almadın.";
+
+  const fotolu = ojeler.filter(o => o.foto).length;
+  const depoNotu = Depo.mod === "idb"
+    ? "Veriler bu tarayıcıda saklanıyor."
+    : Depo.mod === "ls"
+      ? "Veriler bu tarayıcıda saklanıyor, ama bu tarayıcı sınırlı bir alan veriyor. Çok fotoğraf eklersen alan dolabilir; yedeğini sık al."
+      : "Dikkat: bu tarayıcıda veri saklanamıyor, yaptıkların kaybolur.";
+  $("#depoBilgi").textContent =
+    `${ojeler.length} oje kayıtlı, ${fotolu} tanesinde fotoğraf var. ` + depoNotu;
+}
+
+function yedekAlTikla(){
+  if(ojeler.length === 0){ bildir("Yedeklenecek kayıt yok."); return; }
+  const paket = {
+    tur: "oje-defteri-yedek",
+    surum: YEDEK_SURUM,
+    tarih: new Date().toISOString(),
+    ojeler,
+    markaHaritasi
+  };
+  const metin = JSON.stringify(paket);
+  const damla = new Blob([metin], {type:"application/json"});
+  const adres = URL.createObjectURL(damla);
+  const bag = document.createElement("a");
+  bag.href = adres;
+  bag.download = `oje-defteri-yedek-${bugun()}.json`;
+  document.body.appendChild(bag);
+  bag.click();
+  document.body.removeChild(bag);
+  setTimeout(() => URL.revokeObjectURL(adres), 2000);
+
+  sonYedek = Date.now();
+  if(Depo.calisiyor) Depo.ayarYaz("sonYedek", sonYedek).catch(() => {});
+  seritKapatildi = false;
+  yedekSeridiTazele();
+  ayarSayfasiniTazele();
+  bildir("Yedek dosyası indirildi");
+}
+
+async function yedekYukleSecildi(olay){
+  const dosya = olay.target.files && olay.target.files[0];
+  olay.target.value = "";
+  if(!dosya) return;
+
+  let paket;
+  try {
+    paket = JSON.parse(await dosya.text());
+  } catch(e){
+    alert("Bu dosya okunamadı. Yedek dosyası bozuk görünüyor. Koleksiyonuna dokunulmadı.");
+    return;
+  }
+
+  if(!paket || paket.tur !== "oje-defteri-yedek" || !Array.isArray(paket.ojeler)){
+    alert("Bu bir Oje Defteri yedek dosyası değil. Koleksiyonuna dokunulmadı.");
+    return;
+  }
+
+  const gelen = paket.ojeler.filter(o => o && typeof o === "object" && o.id).map(temizle);
+  if(gelen.length === 0){
+    alert("Yedek dosyasında geçerli kayıt bulunamadı. Koleksiyonuna dokunulmadı.");
+    return;
+  }
+
+  const onay = ojeler.length === 0
+    ? `${gelen.length} oje geri yüklenecek. Devam edilsin mi?`
+    : `Şu anki ${ojeler.length} ojenin yerine yedekteki ${gelen.length} oje gelecek. ` +
+      `Mevcut kayıtlar silinecek. Devam edilsin mi?`;
+  if(!confirm(onay)) return;
+
+  try {
+    if(Depo.calisiyor){
+      await Depo.hepsiniSil();
+      for(const o of gelen) await Depo.kaydet(o);
+    }
+  } catch(e){
+    console.error(e);
+    alert("Geri yükleme sırasında bir sorun oldu. Lütfen tekrar dene.");
+    if(Depo.calisiyor){
+      try { ojeler = await Depo.tumOjeler(); } catch(_){}
+    }
+    ciz();
+    return;
+  }
+
+  ojeler = gelen;
+
+  if(paket.markaHaritasi && typeof paket.markaHaritasi === "object"){
+    markaHaritasi = {...markaHaritasi, ...paket.markaHaritasi};
+    try { await Depo.ayarYaz("markaHaritasi", markaHaritasi); } catch(e){}
+  }
+
+  sayfaKapat("#ayarSayfa");
+  filtreleriTemizle();
+  bildir(`${gelen.length} oje geri yüklendi`);
+}
+
+function temizle(o){
+  const durum = DURUMLAR.some(d => d.id === o.durum) ? o.durum : "kullanimda";
+  const fiyat = (typeof o.fiyat === "number" && !isNaN(o.fiyat)) ? o.fiyat : null;
+  return {
+    id: String(o.id),
+    marka: typeof o.marka === "string" ? o.marka : "",
+    isim:  typeof o.isim  === "string" ? o.isim  : "",
+    renk:  /^#[0-9a-fA-F]{6}$/.test(o.renk || "") ? o.renk : "#c04f72",
+    barkod: barkodDuzelt(o.barkod),
+    durum,
+    alimTarihi:  typeof o.alimTarihi  === "string" ? o.alimTarihi  : "",
+    bitisTarihi: typeof o.bitisTarihi === "string" ? o.bitisTarihi : "",
+    fiyat,
+    foto: (typeof o.foto === "string" && o.foto.startsWith("data:image/")) ? o.foto : null,
+    not: typeof o.not === "string" ? o.not : "",
+    eklenmeZamani: typeof o.eklenmeZamani === "number" ? o.eklenmeZamani : Date.now()
+  };
+}
+
+/* ================= Olaylar ================= */
+
+function olaylariBagla(){
+  $("#ekleDugme").addEventListener("click", () => detayAc(null));
+  $("#detayKapat").addEventListener("click", () => sayfaKapat("#detaySayfa"));
+  $("#kaydet").addEventListener("click", kaydetTikla);
+  $("#sil").addEventListener("click", silTikla);
+
+  $("#ozetAc").addEventListener("click", () => { ozetCiz(); sayfaAc("#ozetSayfa"); });
+  $("#ozetKapat").addEventListener("click", () => sayfaKapat("#ozetSayfa"));
+  $("#ayarAc").addEventListener("click", () => sayfaAc("#ayarSayfa"));
+  $("#ayarKapat").addEventListener("click", () => sayfaKapat("#ayarSayfa"));
+
+  $("#fRenk").addEventListener("input", () => {
+    if(duzenlenen) duzenlenen.renkElleSecildi = true;
+    renkAdiniGuncelle();
+  });
+  $("#fDurum").addEventListener("change", bitisAlaniniGuncelle);
+
+  $("#taraDugme").addEventListener("click", () => taramaAc("magaza"));
+  $("#barkodTara").addEventListener("click", () => taramaAc("form"));
+  $("#kameraKapat").addEventListener("click", taramaKapat);
+  $("#sonucKapat").addEventListener("click", () => sayfaKapat("#sonucSayfa"));
+  $("#fBarkod").addEventListener("input", () => barkodIpucuTazele());
+  $("#fBarkod").addEventListener("change", () => {
+    const barkod = barkodDuzelt($("#fBarkod").value);
+    if(barkod) markaOner(barkod);
+  });
+
+  $("#fotoSec").addEventListener("click", () => $("#fFoto").click());
+  $("#fFoto").addEventListener("change", async olay => {
+    const dosya = olay.target.files && olay.target.files[0];
+    olay.target.value = "";
+    if(!dosya) return;
+    bildir("Fotoğraf hazırlanıyor...");
+    try {
+      duzenlenen.foto = await fotoKucult(dosya);
+      fotoGoster(duzenlenen.foto);
+
+      // Rengi fotoğraftan tahmin et — kullanıcı henüz elle seçmediyse
+      const renk = await baskinRenk(duzenlenen.foto);
+      if(renk && !duzenlenen.renkElleSecildi){
+        $("#fRenk").value = renk;
+        renkAdiniGuncelle();
+        bildir("Fotoğraf eklendi, renk fotoğraftan alındı");
+      } else {
+        bildir("Fotoğraf eklendi");
+      }
+    } catch(e){
+      console.error(e);
+      bildir("Bu fotoğraf okunamadı, kayıt fotoğrafsız devam ediyor.");
+    }
+  });
+  $("#fotoSil").addEventListener("click", () => {
+    duzenlenen.foto = null;
+    fotoGoster(null);
+  });
+
+  let araZaman;
+  $("#ara").addEventListener("input", e => {
+    clearTimeout(araZaman);
+    const deger = e.target.value;
+    araZaman = setTimeout(() => { filtre.ara = deger; ciz(); }, 160);
+  });
+  $("#markaSecim").addEventListener("change", e => { filtre.marka = e.target.value; ciz(); });
+  $("#renkSecim").addEventListener("change", e => { filtre.renk = e.target.value; ciz(); });
+  $("#siralama").addEventListener("change", e => { filtre.sira = e.target.value; ciz(); });
+
+  $("#seritYedek").addEventListener("click", () => sayfaAc("#ayarSayfa"));
+  $("#seritKapat").addEventListener("click", () => {
+    seritKapatildi = true;
+    yedekSeridiTazele();
+  });
+
+  $("#yedekAl").addEventListener("click", yedekAlTikla);
+  $("#yedekYukle").addEventListener("click", () => $("#yedekDosya").click());
+  $("#yedekDosya").addEventListener("change", yedekYukleSecildi);
+
+  document.addEventListener("keydown", e => {
+    if(e.key === "Escape"){
+      const acik = document.querySelector(".sayfa.acik");
+      if(!acik) return;
+      if(acik.id === "kameraSayfa") taramaKapat();
+      else sayfaKapat("#" + acik.id);
+    }
+  });
+
+  // Sekme arkaya alınırsa kamerayı serbest bırak
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden && $("#kameraSayfa").classList.contains("acik")) taramaKapat();
+  });
+}
+
+baslat();
+</script>
+</body>
+</html>
