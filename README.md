@@ -1,5 +1,7 @@
 # Oje Defteri
 
+**Kullanmak için:** https://sozatici.github.io/oje-defteri/
+
 Oje koleksiyonu takip uygulaması. Tek dosyalık, kurulum gerektirmeyen bir
 web sayfası: hangi ojeler var, ne zaman alındı, kaça alındı, hangisi
 kullanımda, hangisi bitti.

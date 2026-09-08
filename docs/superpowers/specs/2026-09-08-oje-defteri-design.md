@@ -219,3 +219,18 @@ Tarayıcıda gerçek akışlar denenecek:
 Bu sürümde yapılmayacaklar: çoklu kullanıcı, cihazlar arası
 senkronizasyon, alışveriş listesi/istek listesi, barkod okuma, renk
 eşleştirme önerisi, sürülmüş hâlin denenmesi (swatch) takvimi.
+
+## Yayın
+
+Uygulama https://sozatici.github.io/oje-defteri/ adresinde yayında.
+Kaynak: github.com/sozatici/oje-defteri (herkese açık depo — GitHub'ın
+ücretsiz planında Pages yalnız açık depolardan yayınlanır; uygulama kodu
+görünür, kullanıcı verisi depoda değil telefonda durur).
+
+`site/` klasörü her değiştiğinde GitHub Actions iş akışı
+(`.github/workflows/pages.yml`) siteyi kendiliğinden yeniden yayınlar.
+Yani sürüm çıkarmak için `python build.py` çalıştırıp commit'lemek yeterli.
+
+Yayınlanmış sürüm güvenli adres (`https://`) üzerinden açıldığı için
+kamera erişimi mümkündür; barkod tarama yalnız burada çalışır. Telefona
+kopyalanan tek dosya sürümünde tarama yerine numara elle yazılır.
