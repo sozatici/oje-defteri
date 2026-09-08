@@ -192,9 +192,30 @@ yüklenemezse (internet yok) özellik kendini kapatır ve kullanıcı
 yapıştırma yoluna yönlendirilir. Fotoğraf okumadan önce büyütülüp griye
 çevrilir ve kontrastı açılır; küçük etiket yazılarında fark ediyor.
 
+Telefon fotoğrafları 12 megapiksel gelir. İlk sürümde ölçekleme
+`max(1, hedef/enBüyükKenar)` yazıldığı için büyük fotoğraflar hiç
+küçültülmüyor, okuyucuya ham hâlleriyle gidiyor ve sonuç boş dönüyordu.
+Sentetik test görüntüleri küçük olduğundan hata testlerde görünmemişti.
+Uzun kenar artık hedefe çekilir (küçültme de büyütme de).
+
+Tek geçiş yerine birkaç ayar denenir (düz metin bloğu, kontrastı açılmış
+seyrek metin, daha küçük ölçek) ve sonuçlar birleştirilir; gerçek
+fotoğrafta hangisinin tutacağı önceden bilinemiyor. İlk geçiş zaten
+doyurucuysa kullanıcı bekletilmez.
+
+OCR satır başlarına çöp bırakır ("_ 190", "om Coffee Bean"). Çözümleyici
+satır kenarlarındaki harf/rakam olmayanları atar ve renk adından yalnız
+büyük harfle başlayan sözcükleri alır. Numara ile ad hem alt alta hem
+aynı satırda aranır; forma "190 Coffee Bean" biçiminde birleşik yazılır.
+
+**Okunan yazı gösterilir.** Çıkarım başarısız olsa bile ham metin
+katlanabilir bir alanda görünür: kullanıcı neyin okunduğunu görür ve
+gerekirse bilgiyi kendisi alır. Sessiz başarısızlık teşhis edilemiyordu.
+
 Sınır: etiket üzerinde kutu içine alınmış izole ürün numarası (Pastel'in
-"28"i gibi) çoğu zaman okunmuyor. Bu kabul edildi, çünkü aynı numara iki
-başka yoldan gelebiliyor: barkod deseni ve Google'dan yapıştırma.
+"28"i gibi) ve dikey basılmış barkod rakamları okunmuyor. Bu kabul
+edildi, çünkü aynı bilgi başka yollardan gelebiliyor: barkod taraması,
+barkod deseni ve Google'dan yapıştırma.
 
 **Google'dan yapıştırma.** Lens çıktısı ("Marka: Pastel / Renk Numarası:
 28 / Miktar: 13 ml / Üretim Tarihi (Prd): 01/2020 …") yapıştırılır,

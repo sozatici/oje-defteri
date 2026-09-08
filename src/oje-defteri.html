@@ -297,6 +297,13 @@ input[type=color]{
 .hizli-dugmeler{display:flex;gap:8px;flex-wrap:wrap}
 .hizli-dugmeler button{flex:1 1 auto;min-width:140px;padding:11px 14px;font-size:14px}
 .hizli-doldur textarea{margin-top:10px;min-height:88px;background:var(--kart)}
+.okunan-yazi{margin-top:10px;font-size:12.5px}
+.okunan-yazi summary{cursor:pointer;color:var(--vurgu);font-weight:600}
+.okunan-yazi pre{
+  margin:8px 0 0;padding:10px;background:var(--kart);border-radius:10px;
+  max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  font-size:12px;line-height:1.45;color:var(--soluk);
+}
 .aranyor{display:inline-block;font-size:13px;color:var(--soluk)}
 </style>
 </head>
@@ -362,6 +369,10 @@ input[type=color]{
         <button type="button" class="ikincil" id="metinYapistirAc">Google'dan yapıştır</button>
       </div>
       <p class="ipucu" id="hizliDurum"></p>
+      <details class="okunan-yazi" id="okunanYazi" hidden>
+        <summary>Etikette okuduğum yazı</summary>
+        <pre id="okunanYaziMetin"></pre>
+      </details>
       <div id="yapistirAlani" hidden>
         <textarea id="yapistirMetin" rows="4"
           placeholder="Google'da çıkan ürün bilgilerini buraya yapıştır"></textarea>
@@ -1323,6 +1334,7 @@ function detayAc(id){
   bitisAlaniniGuncelle();
   barkodIpucuTazele();
   hizliDurum("");
+  okunanYaziGoster("");
   $("#yapistirAlani").hidden = true;
   $("#yapistirMetin").value = "";
   sayfaAc("#detaySayfa");
@@ -1633,9 +1645,14 @@ function hizliDurum(mesaj){ $("#hizliDurum").textContent = mesaj || ""; }
 
 async function etiketFotografindanOku(dosya){
   hizliDurum("Okuma motoru hazırlanıyor…");
+  okunanYaziGoster("");
   let metin = "";
   try {
-    metin = await YaziOkuyucu.oku(dosya, yuzde => hizliDurum("Yazılar okunuyor… %" + yuzde));
+    metin = await YaziOkuyucu.oku(dosya, (yuzde, gecis, toplam) => {
+      hizliDurum(toplam && toplam > 1
+        ? `Yazılar okunuyor… (${gecis}/${toplam}) %${yuzde}`
+        : "Yazılar okunuyor… %" + yuzde);
+    });
   } catch(e){
     console.error(e);
     hizliDurum(navigator.onLine
@@ -1650,9 +1667,27 @@ async function etiketFotografindanOku(dosya){
   if(yazilan){
     hizliDurum(yazilan + " alan dolduruldu — yanlış olanı düzeltebilirsin.");
     bildir("Etiketten okundu");
+  } else if(metin.trim()){
+    hizliDurum("Etiketteki yazıyı okudum ama bilgileri ayıramadım. Aşağıdaki yazıdan kendin alabilirsin.");
   } else {
-    hizliDurum("Etiketten okunabilir bilgi çıkmadı. Daha yakın ve net bir fotoğraf dene, ya da Google'dan yapıştır.");
+    hizliDurum("Etiketten hiç yazı okunamadı. Etiketi kadraja sığdırıp daha yakın çekmeyi dene, ya da Google'dan yapıştır.");
   }
+
+  // Ne okunduğunu göster: hem güven verir hem elle almayı kolaylaştırır
+  okunanYaziGoster(metin);
+}
+
+function okunanYaziGoster(metin){
+  const kutu = $("#okunanYazi");
+  const alan = $("#okunanYaziMetin");
+  if(!metin || !metin.trim()){
+    kutu.hidden = true;
+    alan.textContent = "";
+    return;
+  }
+  alan.textContent = metin.replace(/\n{2,}/g, "\n").trim();
+  kutu.hidden = false;
+  kutu.open = false;
 }
 
 function metinYapistirUygula(){
@@ -1746,33 +1781,65 @@ const YaziOkuyucu = (() => {
     return yukleniyor;
   }
 
-  /* Fotoğrafı okumadan önce büyütüp griye çevirmek küçük etiket
-     yazılarında isabeti belirgin artırıyor. */
-  function hazirla(gorsel){
-    const enBuyuk = 1600;
-    const olcek = Math.min(2.2, Math.max(1, enBuyuk / Math.max(gorsel.width, gorsel.height)));
+  /* Telefon fotoğrafları 12 megapiksel gelir; okuyucu o boyutta ya
+     tıkanır ya boş döner. Uzun kenar hedefe ÇEKİLİR (küçültme de
+     büyütme de), böylece etiket yazısı okunabilir ölçekte kalır. */
+  function olcekle(gorsel, hedefKenar){
+    const enBuyukKenar = Math.max(gorsel.width, gorsel.height) || 1;
+    const olcek = Math.min(3, Math.max(0.2, hedefKenar / enBuyukKenar));
     const tuval = document.createElement("canvas");
-    tuval.width = Math.round(gorsel.width * olcek);
-    tuval.height = Math.round(gorsel.height * olcek);
+    tuval.width = Math.max(1, Math.round(gorsel.width * olcek));
+    tuval.height = Math.max(1, Math.round(gorsel.height * olcek));
     const ctx = tuval.getContext("2d", {willReadFrequently:true});
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(gorsel, 0, 0, tuval.width, tuval.height);
+    return tuval;
+  }
+
+  /* Griye çevirip kontrastı açar. Parlama ve gölge olan gerçek
+     fotoğraflarda bazen yardım eder, bazen bozar — bu yüzden hem ham
+     hem işlenmiş hâl denenir. */
+  function kontrastAc(kaynakTuval){
+    const tuval = document.createElement("canvas");
+    tuval.width = kaynakTuval.width;
+    tuval.height = kaynakTuval.height;
+    const ctx = tuval.getContext("2d", {willReadFrequently:true});
+    ctx.drawImage(kaynakTuval, 0, 0);
 
     const veri = ctx.getImageData(0, 0, tuval.width, tuval.height);
     const p = veri.data;
+    let toplam = 0;
     for(let i = 0; i < p.length; i += 4){
       const gri = 0.299*p[i] + 0.587*p[i+1] + 0.114*p[i+2];
-      // Kontrastı aç: açık zemin beyaza, koyu yazı siyaha yaklaşsın
-      const k = Math.max(0, Math.min(255, (gri - 128) * 1.45 + 128));
+      p[i] = p[i+1] = p[i+2] = gri;
+      toplam += gri;
+    }
+    const ortalama = toplam / (p.length / 4);      // sahnenin kendi parlaklığı
+    for(let i = 0; i < p.length; i += 4){
+      const k = Math.max(0, Math.min(255, (p[i] - ortalama) * 1.6 + 150));
       p[i] = p[i+1] = p[i+2] = k;
     }
     ctx.putImageData(veri, 0, 0);
     return tuval;
   }
 
+  function isePuan(metin){
+    const t = metin || "";
+    let puan = t.replace(/\s/g, "").length;             // ham harf sayısı
+    if(/\d{1,2}[.,]?\d?\s*m[lL]/.test(t)) puan += 40;   // hacim
+    if(/\b\d{2,4}\b/.test(t)) puan += 20;               // numara adayı
+    if(/\b\d{8,13}\b/.test(t)) puan += 40;              // barkod
+    return puan;
+  }
+
+  /* Tek geçiş yerine birkaç ayar denenir; gerçek fotoğrafta hangisinin
+     tutacağı önceden bilinemiyor. Sonuçlar birleştirilir: biri numarayı,
+     öteki hacmi yakalayabiliyor. */
   async function oku(dosya, ilerleme){
     const Tesseract = await motoruYukle();
     const adres = URL.createObjectURL(dosya);
     let isci = null;
+
     try {
       const gorsel = await new Promise((coz, red) => {
         const g = new Image();
@@ -1780,7 +1847,13 @@ const YaziOkuyucu = (() => {
         g.onerror = () => red(new Error("Fotoğraf açılamadı."));
         g.src = adres;
       });
-      const tuval = hazirla(gorsel);
+
+      const buyuk = olcekle(gorsel, 2000);
+      const denemeler = [
+        {tuval: buyuk, psm: "6"},                  // düz metin bloğu
+        {tuval: kontrastAc(buyuk), psm: "11"},     // seyrek/kutu içi yazı
+        {tuval: olcekle(gorsel, 1200), psm: "6"}   // küçük ölçek, geniş bakış
+      ];
 
       isci = await Tesseract.createWorker("eng", 1, {
         logger: m => {
@@ -1789,8 +1862,22 @@ const YaziOkuyucu = (() => {
           }
         }
       });
-      const sonuc = await isci.recognize(tuval);
-      return (sonuc && sonuc.data && sonuc.data.text) || "";
+
+      const metinler = [];
+      for(let i = 0; i < denemeler.length; i++){
+        if(ilerleme) ilerleme(0, i + 1, denemeler.length);
+        try {
+          await isci.setParameters({ tessedit_pageseg_mode: denemeler[i].psm });
+          const sonuc = await isci.recognize(denemeler[i].tuval);
+          const metin = (sonuc && sonuc.data && sonuc.data.text) || "";
+          if(metin.trim()) metinler.push(metin);
+          // İlk geçiş zaten doyurucuysa kullanıcıyı bekletme
+          if(i === 0 && isePuan(metin) > 120) break;
+        } catch(e){ console.warn("okuma geçişi başarısız", e); }
+      }
+
+      metinler.sort((a, b) => isePuan(b) - isePuan(a));
+      return metinler.join("\n");
     } finally {
       URL.revokeObjectURL(adres);
       if(isci){ try { await isci.terminate(); } catch(e){} }
@@ -1866,6 +1953,49 @@ function etiketMetniCozumle(ham){
     }
   }
 
+  // Etiketlerde numara ve renk adı çoğu zaman alt alta durur:
+  //   190
+  //   Coffee Bean
+  if(!sonuc.renkAdi || !sonuc.numara){
+    // OCR satır başlarına çöp bırakır ("_ 190", "om Coffee Bean"):
+    // kenarlardaki harf/rakam olmayanlar atılır, addan da yalnız
+    // büyük harfle başlayan sözcükler alınır.
+    const kirp = x => x.replace(/^[^\p{L}\p{N}]+/u, "").replace(/[^\p{L}\p{N})]+$/u, "").trim();
+    const adiTemizle = ad => ad.split(/\s+/)
+                               .filter(k => /^[A-ZÇĞİÖŞÜ]/.test(k))
+                               .join(" ");
+
+    const satirlar = metin.split("\n").map(kirp);
+    const copAd = /^(ml|mL|gr|gram|oz|fl|adet|nail|polish|oje|made|gratis|warning|yanici|ingredients)$/i;
+
+    for(let i = 0; i < satirlar.length - 1; i++){
+      if(!/^\d{2,4}$/.test(satirlar[i]) || /^(19|20)\d{2}$/.test(satirlar[i])) continue;
+      const ad = adiTemizle(satirlar[i+1]);
+      const adUygun = /^[A-ZÇĞİÖŞÜ][A-Za-zÇĞİÖŞÜçğıöşü'’]{2,}(?:[ ][A-Za-zÇĞİÖŞÜçğıöşü'’]+){0,2}$/.test(ad)
+                      && !copAd.test(ad)
+                      && !/nail|polish|made in|ingredients|warning/i.test(ad);
+      if(adUygun){
+        if(!sonuc.numara) sonuc.numara = satirlar[i];
+        if(!sonuc.renkAdi) sonuc.renkAdi = ad;
+        break;
+      }
+    }
+
+    // Numara ve ad aynı satırda da olabilir: "190 Coffee Bean"
+    if(!sonuc.renkAdi){
+      for(const satir of satirlar){
+        const m = satir.match(/^(\d{2,4})\s+(.+)$/);
+        if(!m || /^(19|20)\d{2}$/.test(m[1])) continue;
+        const ad = adiTemizle(m[2]);
+        if(ad.length >= 3 && !copAd.test(ad) && !/nail|polish|made in|fl oz/i.test(ad)){
+          if(!sonuc.numara) sonuc.numara = m[1];
+          sonuc.renkAdi = ad;
+          break;
+        }
+      }
+    }
+  }
+
   // Tek başına duran kısa sayı da ürün numarası olabilir (etiketteki kutu)
   if(!sonuc.numara){
     for(const satir of metin.split("\n")){
@@ -1919,8 +2049,11 @@ function cozumuFormaUygula(c){
     sayi++;
   };
 
+  // Etiketlerde ikisi birlikte yazar: "190 Coffee Bean"
+  const isim = (c.numara && c.renkAdi) ? (c.numara + " " + c.renkAdi)
+                                       : (c.renkAdi || c.numara);
   yaz("#fMarka", c.marka);
-  yaz("#fIsim", c.renkAdi || c.numara);
+  yaz("#fIsim", isim);
   yaz("#fBarkod", c.barkod);
   yaz("#fFiyat", c.fiyat);
 
