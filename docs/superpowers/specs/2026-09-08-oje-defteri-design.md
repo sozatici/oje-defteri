@@ -169,6 +169,14 @@ barkod içindeki yeri önekle birlikte saklanır; aynı önekli sonraki
 barkodlarda numara oradan çıkarılıp önerilir. Desen bulunamazsa hiçbir
 şey öğrenilmez — yanlış tahmin üretmektense sessiz kalmak yeğdir.
 
+**Mağaza barkodları.** 02 ve 20–29 ile başlayan barkodlar "mağaza içi"
+numaralardır: zincir kendi ürününe verir, uluslararası veritabanlarına
+tanımı gereği hiç girmez. Gratis'in Coffee Bean'i (2050000078361) ve
+Beaulis cilası (2050000101793) böyle; Google bunları bulur çünkü
+gratis.com sayfasını indekslemiştir, veritabanından değil. Bu durumda
+kullanıcıya "kayıtlı değil" demek yanıltıcı olur — barkodun mağazaya
+özel olduğu ve Google'da bulunacağı açıkça söylenir.
+
 **Google'da arama.** Açık veritabanları Google kadar geniş değil: Pastel
 461 kayıtlı, Pastel 28 değil. Bu yüzden hem sonuç ekranında hem kayıt
 formunda barkodu Google'da aratan bir bağlantı durur. Kullanıcının zaten
@@ -227,8 +235,14 @@ edildi, çünkü aynı bilgi başka yollardan gelebiliyor: barkod taraması,
 barkod deseni ve Google'dan yapıştırma.
 
 **Google'dan yapıştırma.** Lens çıktısı ("Marka: Pastel / Renk Numarası:
-28 / Miktar: 13 ml / Üretim Tarihi (Prd): 01/2020 …") yapıştırılır,
-alanlar dolar. OCR'ın tutmadığı durumlarda kesin çalışan yol budur.
+28 / Miktar: 13 ml / Üretim Tarihi (Prd): 01/2020 …") ya da arama
+sonucundaki ürün başlığı ("Beaulis Speed It Hızlı Kurutucu Parlak Cila
+10 ml") çözümlenir. Başlıklarda ürün adı marka ile hacim arasında durur;
+hacimden sonrası Google'ın açıklama metnidir ve ada karıştırılmaz.
+
+Düğmeye basıldığında pano kendiliğinden okunur: kullanıcı Google'da
+kopyalayıp döndüyse yapıştırma adımı hiç olmaz. Tarayıcı pano iznini
+vermezse elle yapıştırma alanı açılır — akış hiçbir durumda tıkanmaz.
 
 **Alan açılmayan bilgiler nota yazılır.** Hacim ve tarihler için ayrı
 alan açılmadı; "13 ml · Üretim 01/2020 · Son kullanma 01/2025 (süresi

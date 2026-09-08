@@ -1614,9 +1614,15 @@ function sonucCiz(barkod, eslesen){
       urunSorgula(barkod).then(bulunan => {
         if(!document.body.contains(satir)) return;
         internettenGelen = bulunan;
-        satir.textContent = bulunan
-          ? "İnternette bulundu: " + [bulunan.marka, bulunan.ad].filter(Boolean).join(" ")
-          : "İnternette bu barkod kayıtlı değil — bilgileri elle yazacaksın.";
+        if(bulunan){
+          satir.textContent = "İnternette bulundu: " +
+            [bulunan.marka, bulunan.ad].filter(Boolean).join(" ");
+        } else if(magazaBarkoduMu(barkod)){
+          satir.textContent = "Bu barkod mağazaya özel (zincirin kendi numarası), " +
+            "ürün veritabanlarında hiç bulunmaz. Google'da ara — orada çıkar.";
+        } else {
+          satir.textContent = "İnternette bu barkod kayıtlı değil — bilgileri elle yazacaksın.";
+        }
       });
     }
   }
@@ -1701,6 +1707,30 @@ function metinYapistirUygula(){
   } else {
     hizliDurum("Bu metinden bilgi çıkaramadım. Marka ve numara yazan kısmı yapıştırmayı dene.");
   }
+}
+
+/* Google'da bulduğunu kopyalayıp buraya dönen kullanıcı için: düğmeye
+   basınca panoyu kendimiz okuruz, yapıştırma adımı hiç olmaz. Tarayıcı
+   izin vermezse elle yapıştırma alanı açılır. */
+async function panodanDoldurmayiDene(){
+  if(!navigator.clipboard || !navigator.clipboard.readText) return false;
+  let metin = "";
+  try {
+    metin = await navigator.clipboard.readText();
+  } catch(e){
+    return false;                      // izin yok ya da pano boş
+  }
+  if(!metin || !metin.trim()) return false;
+
+  const yazilan = cozumuFormaUygula(etiketMetniCozumle(metin));
+  if(yazilan){
+    hizliDurum(yazilan + " alan panodan dolduruldu — yanlış olanı düzeltebilirsin.");
+    bildir("Panodan dolduruldu");
+    return true;
+  }
+  // Çözülemedi ama metin var: kullanıcı görsün, elle düzeltsin
+  $("#yapistirMetin").value = metin;
+  return false;
 }
 
 /* Barkod önekinden marka ve ürün numarasını önerir (boş alanlara). */
@@ -1929,8 +1959,14 @@ const BILINEN_MARKALAR = [
   "Oriflame","Catrice","Essence","Maybelline","L'Oréal","Loreal","Rimmel",
   "Pierre Cardin","Ted Lapidus","Sleek","Depend","Claresa","Semilac","Kiko",
   "Revlon","Sally Hansen","OPI","Nailover","Callista","Sedef","Alix Avien",
-  "Ruby Rose","Pinkar"
+  "Ruby Rose","Pinkar","Beaulis","Sophia","Chic","Aura","Nyx","Bourjois"
 ];
+
+/* 02 ve 20–29 ile başlayan barkodlar "mağaza içi" numaralardır: zincir
+   kendi ürününe verir, uluslararası veritabanlarına hiç girmez. */
+function magazaBarkoduMu(barkod){
+  return /^(02|2[0-9])/.test(String(barkod || "")) && String(barkod).length >= 12;
+}
 
 function tarihCikar(metin){
   const m = String(metin || "").match(/(\d{1,2})\s*[\/.\-]\s*(\d{4})/);
@@ -2025,6 +2061,29 @@ function etiketMetniCozumle(ham){
           sonuc.renkAdi = ad;
           break;
         }
+      }
+    }
+
+    // Google sonucu tek satırlık bir ürün başlığı olur:
+    // "Beaulis Speed It Hızlı Kurutucu Parlak Cila 10 ml"
+    if(!sonuc.renkAdi && !sonuc.numara && sonuc.marka){
+      const markaKucuk = sonuc.marka.toLocaleLowerCase("tr");
+      for(const satir of satirlar){
+        if(!satir.toLocaleLowerCase("tr").startsWith(markaKucuk)) continue;
+        let kalan = satir.slice(sonuc.marka.length).trim();
+
+        // Ürün adı marka ile hacim arasında durur; hacimden sonrası
+        // Google'ın açıklama metnidir, ada karışmamalı.
+        const hacimYeri = kalan.search(/\d+(?:[.,]\d+)?\s*m[lL]\b/);
+        if(hacimYeri > 2) kalan = kalan.slice(0, hacimYeri);
+        kalan = kalan.split(/[.·|]|\s\.\.\./)[0];
+
+        kalan = kalan.replace(/\d+(?:[.,]\d+)?\s*m[lL]\b/g, "")
+                     .replace(/\(?\d+(?:[.,]\d+)?\s*fl\.?\s*oz\.?\)?/gi, "")
+                     .replace(/[\s\-–—|,]+$/, "")
+                     .trim();
+        kalan = urunAdiSadelestir(kalan, "");
+        if(kalan.length >= 3 && kalan.length <= 60){ sonuc.renkAdi = kalan; break; }
       }
     }
 
@@ -2219,7 +2278,9 @@ async function urunAdiSor(barkod){
     const doluMu = $("#fMarka").value.trim() || $("#fIsim").value.trim();
     ipucu.textContent = doluMu
       ? "Barkoddan tahmin edildi, yanlışsa değiştir."
-      : "İnternette bu barkod kayıtlı değil — bilgileri elle yaz ya da aşağıdan Google'da ara.";
+      : magazaBarkoduMu(barkod)
+        ? "Bu barkod mağazaya özel; ürün veritabanlarında bulunmaz. Aşağıdan Google'da ara."
+        : "İnternette bu barkod kayıtlı değil — bilgileri elle yaz ya da aşağıdan Google'da ara.";
     return;
   }
   if(bulunan.marka && !$("#fMarka").value.trim()) $("#fMarka").value = bulunan.marka;
@@ -2493,10 +2554,18 @@ function olaylariBagla(){
     olay.target.value = "";
     if(dosya) await etiketFotografindanOku(dosya);
   });
-  $("#metinYapistirAc").addEventListener("click", () => {
+  $("#metinYapistirAc").addEventListener("click", async () => {
     const alan = $("#yapistirAlani");
-    alan.hidden = !alan.hidden;
-    if(!alan.hidden) setTimeout(() => $("#yapistirMetin").focus(), 80);
+    if(!alan.hidden){ alan.hidden = true; return; }
+
+    hizliDurum("Panoya bakılıyor…");
+    if(await panodanDoldurmayiDene()) return;   // kopyaladıysan iş bitti
+
+    alan.hidden = false;
+    hizliDurum($("#yapistirMetin").value
+      ? "Panodakinden bilgi çıkaramadım; aşağıdan düzeltebilirsin."
+      : "Google'da bulduğun ürün başlığını buraya yapıştır.");
+    setTimeout(() => $("#yapistirMetin").focus(), 80);
   });
   $("#yapistirUygula").addEventListener("click", metinYapistirUygula);
   $("#yapistirKapat").addEventListener("click", () => {
