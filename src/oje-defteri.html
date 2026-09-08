@@ -363,6 +363,10 @@ input[type=color]{
         <button type="button" id="barkodTara">Tara</button>
       </div>
       <p class="ipucu" id="barkodIpucu"></p>
+      <p class="ipucu" id="barkodGoogle" hidden>
+        <a href="#" id="formGoogleAra" target="_blank" rel="noopener noreferrer"
+           style="color:var(--vurgu);font-weight:600">Bu barkodu Google'da ara →</a>
+      </p>
     </label>
 
     <label>
@@ -1017,6 +1021,11 @@ let duzenlenenYeniMi = false;
 /* Barkod öneki -> marka. Kullanıcı bir kez yazdıkça kendi kendine dolar. */
 let markaHaritasi = {};
 
+/* Barkod öneki -> ürün numarasının barkod içindeki yeri, [baş, son].
+   Bazı markalar ürün numarasını barkoda gömer (Pastel 461 ->
+   869064490|461|5). Kullanıcı bir kez yazınca desen öğrenilir. */
+let numaraDesenleri = {};
+
 /* Tarama nereden başlatıldı: "magaza" (ana ekran) veya "form" (detay) */
 let taramaKaynagi = "magaza";
 
@@ -1041,6 +1050,8 @@ async function baslat(){
     sonYedek = await Depo.ayarOku("sonYedek");
     const harita = await Depo.ayarOku("markaHaritasi");
     if(harita && typeof harita === "object") markaHaritasi = harita;
+    const desenler = await Depo.ayarOku("numaraDesenleri");
+    if(desenler && typeof desenler === "object") numaraDesenleri = desenler;
   }
   ciz();
 }
@@ -1352,6 +1363,7 @@ async function kaydetTikla(){
   if(yer >= 0) ojeler[yer] = kayit; else ojeler.push(kayit);
 
   markaOgren(kayit.barkod, kayit.marka);
+  numaraDeseniOgren(kayit.barkod, kayit.isim);
 
   sayfaKapat("#detaySayfa");
   ciz();
@@ -1533,7 +1545,13 @@ function sonucCiz(barkod, eslesen){
       <div class="dugme-satir">
         <button class="ikincil" id="sonucYineTara">Yeni tarama</button>
         <button class="birincil" id="sonucEkle">Koleksiyona ekle</button>
-      </div>`;
+      </div>
+      <div class="dugme-satir">
+        <a class="ikincil" style="text-align:center;text-decoration:none;display:block"
+           id="googleAra" target="_blank" rel="noopener noreferrer"
+           href="${kacis(googleAramaAdresi(barkod, tahmin))}">Bu barkodu Google'da ara</a>
+      </div>
+      <p class="ipucu" style="text-align:center">Google çoğu ojeyi tanır; oradan öğrendiğin marka ve numarayı buraya yazabilirsin.</p>`;
 
     let internettenGelen = null;
     $("#sonucYineTara").addEventListener("click", () => {
@@ -1578,13 +1596,23 @@ function yeniKayitBarkodla(barkod, internettenGelen){
   }
 }
 
-/* Barkod önekinden markayı önerir (yalnız marka alanı boşsa). */
+/* Barkod önekinden marka ve ürün numarasını önerir (boş alanlara). */
 function markaOner(barkod){
+  let onerildi = false;
+
   const tahmin = markaHaritasi[barkodOneki(barkod)];
   if(tahmin && !$("#fMarka").value.trim()){
     $("#fMarka").value = tahmin;
-    barkodIpucuTazele("Marka barkoddan tahmin edildi, yanlışsa değiştir.");
+    onerildi = true;
   }
+
+  const numara = numaraCikar(barkod);
+  if(numara && !$("#fIsim").value.trim()){
+    $("#fIsim").value = numara;
+    onerildi = true;
+  }
+
+  if(onerildi) barkodIpucuTazele("Barkoddan tahmin edildi, yanlışsa değiştir.");
 }
 
 /* Kaydederken öneki öğrenir, böylece sonraki şişelerde marka hazır gelir. */
@@ -1596,10 +1624,50 @@ async function markaOgren(barkod, marka){
   try { await Depo.ayarYaz("markaHaritasi", markaHaritasi); } catch(e){}
 }
 
+/* İsim saf bir numaraysa ve barkodun içinde geçiyorsa, yerini öğrenir. */
+async function numaraDeseniOgren(barkod, isim){
+  const onek = barkodOneki(barkod);
+  const sayi = (isim || "").trim();
+  if(!onek || !/^\d{3,5}$/.test(sayi)) return;
+
+  const yer = barkod.indexOf(sayi);
+  if(yer < 0) return;
+
+  const desen = [yer, yer + sayi.length];
+  const eski = numaraDesenleri[onek];
+  if(eski && eski[0] === desen[0] && eski[1] === desen[1]) return;
+  numaraDesenleri[onek] = desen;
+  try { await Depo.ayarYaz("numaraDesenleri", numaraDesenleri); } catch(e){}
+}
+
+/* Öğrenilmiş desene göre barkoddan ürün numarasını çıkarır. */
+function numaraCikar(barkod){
+  const desen = numaraDesenleri[barkodOneki(barkod)];
+  if(!desen || barkod.length < desen[1]) return "";
+  const parca = barkod.slice(desen[0], desen[1]);
+  if(!/^\d+$/.test(parca)) return "";
+  return String(Number(parca));   // baştaki sıfırlar atılır
+}
+
+/* Barkodu Google'da aratan adres — açık veritabanları yetmediğinde. */
+function googleAramaAdresi(barkod, marka){
+  const sorgu = [barkod, marka, "oje"].filter(Boolean).join(" ");
+  return "https://www.google.com/search?q=" + encodeURIComponent(sorgu);
+}
+
 function barkodIpucuTazele(mesaj){
   const ipucu = $("#barkodIpucu");
+  const barkodSimdi = barkodDuzelt($("#fBarkod").value);
+
+  // Barkod varsa Google bağlantısını göster ve güncelle
+  const googleSatiri = $("#barkodGoogle");
+  googleSatiri.hidden = !barkodSimdi;
+  if(barkodSimdi){
+    $("#formGoogleAra").href = googleAramaAdresi(barkodSimdi, $("#fMarka").value.trim());
+  }
+
   if(mesaj){ ipucu.textContent = mesaj; return; }
-  const barkod = barkodDuzelt($("#fBarkod").value);
+  const barkod = barkodSimdi;
   if(!barkod){ ipucu.textContent = ""; return; }
   const ayni = ojeler.filter(o => o.barkod === barkod && o.id !== (duzenlenen && duzenlenen.id));
   ipucu.textContent = ayni.length
@@ -1667,7 +1735,11 @@ async function urunAdiSor(barkod){
 
   const bulunan = await urunSorgula(barkod);
   if(!bulunan){
-    ipucu.textContent = "İnternette bu barkod kayıtlı değil — bilgileri elle yaz.";
+    // Barkoddan zaten tahmin edildiyse o bilgiyi çürütmüş gibi görünmesin
+    const doluMu = $("#fMarka").value.trim() || $("#fIsim").value.trim();
+    ipucu.textContent = doluMu
+      ? "Barkoddan tahmin edildi, yanlışsa değiştir."
+      : "İnternette bu barkod kayıtlı değil — bilgileri elle yaz ya da aşağıdan Google'da ara.";
     return;
   }
   if(bulunan.marka && !$("#fMarka").value.trim()) $("#fMarka").value = bulunan.marka;
@@ -1797,7 +1869,8 @@ function yedekAlTikla(){
     surum: YEDEK_SURUM,
     tarih: new Date().toISOString(),
     ojeler,
-    markaHaritasi
+    markaHaritasi,
+    numaraDesenleri
   };
   const metin = JSON.stringify(paket);
   const damla = new Blob([metin], {type:"application/json"});
@@ -1868,6 +1941,10 @@ async function yedekYukleSecildi(olay){
   if(paket.markaHaritasi && typeof paket.markaHaritasi === "object"){
     markaHaritasi = {...markaHaritasi, ...paket.markaHaritasi};
     try { await Depo.ayarYaz("markaHaritasi", markaHaritasi); } catch(e){}
+  }
+  if(paket.numaraDesenleri && typeof paket.numaraDesenleri === "object"){
+    numaraDesenleri = {...numaraDesenleri, ...paket.numaraDesenleri};
+    try { await Depo.ayarYaz("numaraDesenleri", numaraDesenleri); } catch(e){}
   }
 
   sayfaKapat("#ayarSayfa");

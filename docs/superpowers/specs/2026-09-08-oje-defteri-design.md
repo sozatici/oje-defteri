@@ -162,6 +162,18 @@ kaydedilirken bu önek ile marka eşleştirilip saklanır; sonraki
 taramalarda aynı önek görülürse marka alanı kendiliğinden dolar ve
 tahmin olduğu kullanıcıya söylenir. Eşleşme tablosu yedeğe dahildir.
 
+**Ürün numarası öğrenme.** Bazı markalar ürün numarasını barkoda gömer:
+Pastel 461 → 869064490**461**5, Pastel 457 → 869064490**457**8. Kullanıcı
+saf sayıdan oluşan bir isim (3–5 hane) yazıp kaydettiğinde, o sayının
+barkod içindeki yeri önekle birlikte saklanır; aynı önekli sonraki
+barkodlarda numara oradan çıkarılıp önerilir. Desen bulunamazsa hiçbir
+şey öğrenilmez — yanlış tahmin üretmektense sessiz kalmak yeğdir.
+
+**Google'da arama.** Açık veritabanları Google kadar geniş değil: Pastel
+461 kayıtlı, Pastel 28 değil. Bu yüzden hem sonuç ekranında hem kayıt
+formunda barkodu Google'da aratan bir bağlantı durur. Kullanıcının zaten
+elle yaptığı işi tek dokunuşa indirir; sonucu kendisi okuyup yazar.
+
 **İnternetten ad sorma.** Barkod okunduğunda iki açık ürün
 veritabanı sırayla denenir (kozmetik, sonra genel). Türk oje markalarının
 orada kayıtlı olmayacağı varsayılmıştı; gerçekte kayıtlılar — örneğin
