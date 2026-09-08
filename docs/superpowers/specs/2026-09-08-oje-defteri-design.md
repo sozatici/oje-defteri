@@ -198,15 +198,24 @@ küçültülmüyor, okuyucuya ham hâlleriyle gidiyor ve sonuç boş dönüyordu
 Sentetik test görüntüleri küçük olduğundan hata testlerde görünmemişti.
 Uzun kenar artık hedefe çekilir (küçültme de büyütme de).
 
-Tek geçiş yerine birkaç ayar denenir (düz metin bloğu, kontrastı açılmış
-seyrek metin, daha küçük ölçek) ve sonuçlar birleştirilir; gerçek
-fotoğrafta hangisinin tutacağı önceden bilinemiyor. İlk geçiş zaten
-doyurucuysa kullanıcı bekletilmez.
+Tek geçiş yerine birkaç ayar denenir ve sonuçlar birleştirilir; gerçek
+fotoğrafta hangisinin tutacağı önceden bilinemiyor. Sıra: düz metin
+bloğu, **tersine çevrilmiş** görüntü, kontrastı açılmış seyrek metin,
+küçük ölçek. Ters geçiş şart: etiketlerde renk adı çoğu kez koyu kutu
+içinde açık yazıdır (Gratis'in "190 Coffee Bean"i) ve okuyucu bunu düz
+hâlde seçemez. Bu yüzden ilk iki geçiş her zaman yapılır, sonrakiler
+ancak eldeki sonuç zayıfsa. Geçişler aynı satırları tekrarladığı için
+birleşik metin sıra korunarak teklenir.
 
 OCR satır başlarına çöp bırakır ("_ 190", "om Coffee Bean"). Çözümleyici
 satır kenarlarındaki harf/rakam olmayanları atar ve renk adından yalnız
 büyük harfle başlayan sözcükleri alır. Numara ile ad hem alt alta hem
 aynı satırda aranır; forma "190 Coffee Bean" biçiminde birleşik yazılır.
+
+Numara hiç okunmasa bile renk adı yakalanır: iki-üç sözcüklü, her sözcüğü
+büyük harfle başlayan bir satır ("Coffee Bean", "Red Wine") renk adı
+sayılır. Ürün sözcükleri, ülke adları ve bilinen markalar bu eşleşmeden
+dışlanır — yoksa "Golden Rose" renk adı sanılırdı.
 
 **Okunan yazı gösterilir.** Çıkarım başarısız olsa bile ham metin
 katlanabilir bir alanda görünür: kullanıcı neyin okunduğunu görür ve

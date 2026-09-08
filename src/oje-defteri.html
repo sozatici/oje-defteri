@@ -1823,6 +1823,26 @@ const YaziOkuyucu = (() => {
     return tuval;
   }
 
+  /* Etiketlerde renk adı çoğu zaman koyu kutu içinde açık yazıdır
+     (Gratis'in "190 Coffee Bean"i gibi). Okuyucu bunu zor seçer;
+     tersine çevrilmiş bir geçiş o bölgeyi okunur hale getirir. */
+  function tersle(kaynakTuval){
+    const tuval = document.createElement("canvas");
+    tuval.width = kaynakTuval.width;
+    tuval.height = kaynakTuval.height;
+    const ctx = tuval.getContext("2d", {willReadFrequently:true});
+    ctx.drawImage(kaynakTuval, 0, 0);
+    const veri = ctx.getImageData(0, 0, tuval.width, tuval.height);
+    const p = veri.data;
+    for(let i = 0; i < p.length; i += 4){
+      const gri = 0.299*p[i] + 0.587*p[i+1] + 0.114*p[i+2];
+      const k = 255 - gri;
+      p[i] = p[i+1] = p[i+2] = k;
+    }
+    ctx.putImageData(veri, 0, 0);
+    return tuval;
+  }
+
   function isePuan(metin){
     const t = metin || "";
     let puan = t.replace(/\s/g, "").length;             // ham harf sayısı
@@ -1851,6 +1871,7 @@ const YaziOkuyucu = (() => {
       const buyuk = olcekle(gorsel, 2000);
       const denemeler = [
         {tuval: buyuk, psm: "6"},                  // düz metin bloğu
+        {tuval: tersle(buyuk), psm: "6"},          // koyu kutu içindeki açık yazı
         {tuval: kontrastAc(buyuk), psm: "11"},     // seyrek/kutu içi yazı
         {tuval: olcekle(gorsel, 1200), psm: "6"}   // küçük ölçek, geniş bakış
       ];
@@ -1871,13 +1892,25 @@ const YaziOkuyucu = (() => {
           const sonuc = await isci.recognize(denemeler[i].tuval);
           const metin = (sonuc && sonuc.data && sonuc.data.text) || "";
           if(metin.trim()) metinler.push(metin);
-          // İlk geçiş zaten doyurucuysa kullanıcıyı bekletme
-          if(i === 0 && isePuan(metin) > 120) break;
+          // Düz ve ters geçiş hep yapılır (renk adı çoğu kez ters
+          // kontrastta); sonrası ancak eldeki sonuç zayıfsa denenir.
+          if(i >= 1 && isePuan(metinler.join("\n")) > 160) break;
         } catch(e){ console.warn("okuma geçişi başarısız", e); }
       }
 
       metinler.sort((a, b) => isePuan(b) - isePuan(a));
-      return metinler.join("\n");
+      // Geçişler aynı satırları tekrar tekrar üretir; sıra korunarak teklenir
+      const gorulen = new Set();
+      const satirlar = [];
+      for(const satir of metinler.join("\n").split("\n")){
+        const kirpik = satir.trim();
+        if(!kirpik) continue;
+        const anahtar = kirpik.toLocaleLowerCase("tr").replace(/\s+/g, " ");
+        if(gorulen.has(anahtar)) continue;
+        gorulen.add(anahtar);
+        satirlar.push(kirpik);
+      }
+      return satirlar.join("\n");
     } finally {
       URL.revokeObjectURL(adres);
       if(isci){ try { await isci.terminate(); } catch(e){} }
@@ -1992,6 +2025,23 @@ function etiketMetniCozumle(ham){
           sonuc.renkAdi = ad;
           break;
         }
+      }
+    }
+
+    // Numara hiç okunmasa bile renk adı yakalanabilir: iki-üç sözcüklü,
+    // hepsi büyük harfle başlayan bir satır ("Coffee Bean", "Red Wine").
+    if(!sonuc.renkAdi){
+      const yasakli = /nail|polish|made\s*in|fl\s*oz|ingredients|warning|yanici|gratis|t[üu]rkiye|turkey|import|dist|content/i;
+      for(const satir of satirlar){
+        if(yasakli.test(satir)) continue;
+        const ad = adiTemizle(satir);
+        const kelimeler = ad.split(/\s+/).filter(Boolean);
+        if(kelimeler.length < 2 || kelimeler.length > 3) continue;
+        if(ad.length < 5 || ad.length > 30) continue;
+        if(!/^[A-ZÇĞİÖŞÜ][a-zçğıöşü'’]{1,}(?:\s[A-ZÇĞİÖŞÜ][a-zçğıöşü'’]{1,}){1,2}$/.test(ad)) continue;
+        if(BILINEN_MARKALAR.some(m => m.toLocaleLowerCase("tr") === ad.toLocaleLowerCase("tr"))) continue;
+        sonuc.renkAdi = ad;
+        break;
       }
     }
   }
