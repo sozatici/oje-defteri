@@ -174,6 +174,41 @@ barkodlarda numara oradan çıkarılıp önerilir. Desen bulunamazsa hiçbir
 formunda barkodu Google'da aratan bir bağlantı durur. Kullanıcının zaten
 elle yaptığı işi tek dokunuşa indirir; sonucu kendisi okuyup yazar.
 
+Google'ın kendi verisini uygulamaya çekmek mümkün değil: Lens'in API'si
+halka açık değil, arama sonuçlarını programla okumak da tarayıcı
+güvenliği ve kullanım şartları nedeniyle yapılamaz. Ama Lens de bilgiyi
+etiketten okuyor — aynısı yerelde yapılabilir.
+
+## Etiketten bilgi doldurma
+
+Kayıt formunun başında "Bilgileri kendi doldursun" bölümü iki yol sunar;
+ikisi de aynı çözümleyiciden geçer, dolu alanların üzerine hiç yazılmaz.
+
+**Fotoğraftan okuma (OCR).** Şişe etiketinin fotoğrafı çekilir, yazılar
+okunup marka, numara, hacim, üretim ve son kullanma tarihi çıkarılır.
+Okuma motoru (tesseract.js) sayfaya gömülmez, yalnız bu düğmeye
+basılınca dışarıdan yüklenir — dosyayı şişirmemek için. Motor
+yüklenemezse (internet yok) özellik kendini kapatır ve kullanıcı
+yapıştırma yoluna yönlendirilir. Fotoğraf okumadan önce büyütülüp griye
+çevrilir ve kontrastı açılır; küçük etiket yazılarında fark ediyor.
+
+Sınır: etiket üzerinde kutu içine alınmış izole ürün numarası (Pastel'in
+"28"i gibi) çoğu zaman okunmuyor. Bu kabul edildi, çünkü aynı numara iki
+başka yoldan gelebiliyor: barkod deseni ve Google'dan yapıştırma.
+
+**Google'dan yapıştırma.** Lens çıktısı ("Marka: Pastel / Renk Numarası:
+28 / Miktar: 13 ml / Üretim Tarihi (Prd): 01/2020 …") yapıştırılır,
+alanlar dolar. OCR'ın tutmadığı durumlarda kesin çalışan yol budur.
+
+**Alan açılmayan bilgiler nota yazılır.** Hacim ve tarihler için ayrı
+alan açılmadı; "13 ml · Üretim 01/2020 · Son kullanma 01/2025 (süresi
+geçmiş)" biçiminde nota eklenir. Süresi geçmiş olma durumu hesaplanıp
+yazılır.
+
+Çözümleyici tuzaklara karşı korunmuştur: "13 ml" satırı "775 Leafy
+Green" kalıbına benzediği için ölçü birimleri ve çok kısa sözcükler
+elenir; yıl gibi görünen dört haneli sayılar ürün numarası sayılmaz.
+
 **İnternetten ad sorma.** Barkod okunduğunda iki açık ürün
 veritabanı sırayla denenir (kozmetik, sonra genel). Türk oje markalarının
 orada kayıtlı olmayacağı varsayılmıştı; gerçekte kayıtlılar — örneğin

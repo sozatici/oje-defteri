@@ -287,6 +287,16 @@ input[type=color]{
   color:var(--vurgu);font-weight:700;font-size:14px;border:1px solid transparent;
 }
 .ipucu{font-size:12.5px;color:var(--soluk);margin:6px 2px 0}
+
+/* ---------- Hızlı doldur ---------- */
+.hizli-doldur{
+  background:var(--vurgu-yumusak);border-radius:var(--yuvarlak);
+  padding:14px;margin-bottom:18px;
+}
+.hizli-baslik{margin:0 0 10px;font-size:13.5px;font-weight:700;color:var(--vurgu)}
+.hizli-dugmeler{display:flex;gap:8px;flex-wrap:wrap}
+.hizli-dugmeler button{flex:1 1 auto;min-width:140px;padding:11px 14px;font-size:14px}
+.hizli-doldur textarea{margin-top:10px;min-height:88px;background:var(--kart)}
 .aranyor{display:inline-block;font-size:13px;color:var(--soluk)}
 </style>
 </head>
@@ -345,6 +355,24 @@ input[type=color]{
     <button class="ust-dugme" id="kaydet" style="color:var(--vurgu);border-color:var(--vurgu)">Kaydet</button>
   </div>
   <div class="sayfa-govde">
+    <div class="hizli-doldur">
+      <p class="hizli-baslik">Bilgileri kendi doldursun</p>
+      <div class="hizli-dugmeler">
+        <button type="button" class="ikincil" id="etiketOku">Etiket fotoğrafından oku</button>
+        <button type="button" class="ikincil" id="metinYapistirAc">Google'dan yapıştır</button>
+      </div>
+      <p class="ipucu" id="hizliDurum"></p>
+      <div id="yapistirAlani" hidden>
+        <textarea id="yapistirMetin" rows="4"
+          placeholder="Google'da çıkan ürün bilgilerini buraya yapıştır"></textarea>
+        <div class="hizli-dugmeler" style="margin-top:8px">
+          <button type="button" class="birincil" id="yapistirUygula">Doldur</button>
+          <button type="button" class="ikincil" id="yapistirKapat">Vazgeç</button>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="etiketFoto" accept="image/*" hidden>
+
     <label>
       <span class="etiket">Renk</span>
       <div class="renk-satir">
@@ -1294,6 +1322,9 @@ function detayAc(id){
   renkAdiniGuncelle();
   bitisAlaniniGuncelle();
   barkodIpucuTazele();
+  hizliDurum("");
+  $("#yapistirAlani").hidden = true;
+  $("#yapistirMetin").value = "";
   sayfaAc("#detaySayfa");
 }
 
@@ -1596,6 +1627,47 @@ function yeniKayitBarkodla(barkod, internettenGelen){
   }
 }
 
+/* ---------- Hızlı doldurma akışları ---------- */
+
+function hizliDurum(mesaj){ $("#hizliDurum").textContent = mesaj || ""; }
+
+async function etiketFotografindanOku(dosya){
+  hizliDurum("Okuma motoru hazırlanıyor…");
+  let metin = "";
+  try {
+    metin = await YaziOkuyucu.oku(dosya, yuzde => hizliDurum("Yazılar okunuyor… %" + yuzde));
+  } catch(e){
+    console.error(e);
+    hizliDurum(navigator.onLine
+      ? "Okuma motoru yüklenemedi. “Google'dan yapıştır”ı kullanabilirsin."
+      : "Bu özellik için internet gerekiyor. “Google'dan yapıştır”ı kullanabilirsin.");
+    return;
+  }
+
+  const cozum = etiketMetniCozumle(metin);
+  const yazilan = cozumuFormaUygula(cozum);
+
+  if(yazilan){
+    hizliDurum(yazilan + " alan dolduruldu — yanlış olanı düzeltebilirsin.");
+    bildir("Etiketten okundu");
+  } else {
+    hizliDurum("Etiketten okunabilir bilgi çıkmadı. Daha yakın ve net bir fotoğraf dene, ya da Google'dan yapıştır.");
+  }
+}
+
+function metinYapistirUygula(){
+  const cozum = etiketMetniCozumle($("#yapistirMetin").value);
+  const yazilan = cozumuFormaUygula(cozum);
+  if(yazilan){
+    $("#yapistirAlani").hidden = true;
+    $("#yapistirMetin").value = "";
+    hizliDurum(yazilan + " alan dolduruldu — yanlış olanı düzeltebilirsin.");
+    bildir("Bilgiler dolduruldu");
+  } else {
+    hizliDurum("Bu metinden bilgi çıkaramadım. Marka ve numara yazan kısmı yapıştırmayı dene.");
+  }
+}
+
 /* Barkod önekinden marka ve ürün numarasını önerir (boş alanlara). */
 function markaOner(barkod){
   let onerildi = false;
@@ -1647,6 +1719,231 @@ function numaraCikar(barkod){
   const parca = barkod.slice(desen[0], desen[1]);
   if(!/^\d+$/.test(parca)) return "";
   return String(Number(parca));   // baştaki sıfırlar atılır
+}
+
+/* ---------- Fotoğraftaki yazıyı okuma (OCR) ----------
+   Okuma motoru ancak kullanıcı isteyince, dışarıdan yüklenir: hem dosya
+   boyutunu şişirmemek hem de özelliği kullanmayanı bekletmemek için.
+   Motor yüklenemezse (internet yok) özellik sessizce devre dışı kalır. */
+
+const YaziOkuyucu = (() => {
+  const KAYNAK = "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js";
+  let yukleniyor = null;
+
+  function motoruYukle(){
+    if(window.Tesseract) return Promise.resolve(window.Tesseract);
+    if(yukleniyor) return yukleniyor;
+
+    yukleniyor = new Promise((coz, red) => {
+      const etiket = document.createElement("script");
+      etiket.src = KAYNAK;
+      etiket.async = true;
+      etiket.onload = () => window.Tesseract ? coz(window.Tesseract)
+                                             : red(new Error("Motor yüklendi ama tanınmadı."));
+      etiket.onerror = () => red(new Error("Okuma motoru indirilemedi."));
+      document.head.appendChild(etiket);
+    });
+    return yukleniyor;
+  }
+
+  /* Fotoğrafı okumadan önce büyütüp griye çevirmek küçük etiket
+     yazılarında isabeti belirgin artırıyor. */
+  function hazirla(gorsel){
+    const enBuyuk = 1600;
+    const olcek = Math.min(2.2, Math.max(1, enBuyuk / Math.max(gorsel.width, gorsel.height)));
+    const tuval = document.createElement("canvas");
+    tuval.width = Math.round(gorsel.width * olcek);
+    tuval.height = Math.round(gorsel.height * olcek);
+    const ctx = tuval.getContext("2d", {willReadFrequently:true});
+    ctx.drawImage(gorsel, 0, 0, tuval.width, tuval.height);
+
+    const veri = ctx.getImageData(0, 0, tuval.width, tuval.height);
+    const p = veri.data;
+    for(let i = 0; i < p.length; i += 4){
+      const gri = 0.299*p[i] + 0.587*p[i+1] + 0.114*p[i+2];
+      // Kontrastı aç: açık zemin beyaza, koyu yazı siyaha yaklaşsın
+      const k = Math.max(0, Math.min(255, (gri - 128) * 1.45 + 128));
+      p[i] = p[i+1] = p[i+2] = k;
+    }
+    ctx.putImageData(veri, 0, 0);
+    return tuval;
+  }
+
+  async function oku(dosya, ilerleme){
+    const Tesseract = await motoruYukle();
+    const adres = URL.createObjectURL(dosya);
+    let isci = null;
+    try {
+      const gorsel = await new Promise((coz, red) => {
+        const g = new Image();
+        g.onload = () => coz(g);
+        g.onerror = () => red(new Error("Fotoğraf açılamadı."));
+        g.src = adres;
+      });
+      const tuval = hazirla(gorsel);
+
+      isci = await Tesseract.createWorker("eng", 1, {
+        logger: m => {
+          if(ilerleme && m && m.status === "recognizing text"){
+            ilerleme(Math.round((m.progress || 0) * 100));
+          }
+        }
+      });
+      const sonuc = await isci.recognize(tuval);
+      return (sonuc && sonuc.data && sonuc.data.text) || "";
+    } finally {
+      URL.revokeObjectURL(adres);
+      if(isci){ try { await isci.terminate(); } catch(e){} }
+    }
+  }
+
+  return { oku };
+})();
+
+/* ---------- Etiket metnini çözümleme ----------
+   Hem şişe fotoğrafından okunan ham yazı hem de Google'dan yapıştırılan
+   düzenli metin aynı çözümleyiciden geçer. */
+
+const BILINEN_MARKALAR = [
+  "Pastel","Flormar","Golden Rose","Gratis","Essie","Note","Farmasi","Avon",
+  "Oriflame","Catrice","Essence","Maybelline","L'Oréal","Loreal","Rimmel",
+  "Pierre Cardin","Ted Lapidus","Sleek","Depend","Claresa","Semilac","Kiko",
+  "Revlon","Sally Hansen","OPI","Nailover","Callista","Sedef","Alix Avien",
+  "Ruby Rose","Pinkar"
+];
+
+function tarihCikar(metin){
+  const m = String(metin || "").match(/(\d{1,2})\s*[\/.\-]\s*(\d{4})/);
+  if(m) return m[1].padStart(2,"0") + "/" + m[2];
+  const m2 = String(metin || "").match(/(\d{4})\s*[\/.\-]\s*(\d{1,2})/);
+  if(m2) return m2[2].padStart(2,"0") + "/" + m2[1];
+  return "";
+}
+
+function tarihGecmisMi(aaYYYY){
+  const m = String(aaYYYY || "").match(/^(\d{2})\/(\d{4})$/);
+  if(!m) return false;
+  const son = new Date(Number(m[2]), Number(m[1]), 0);   // ayın son günü
+  return son < new Date();
+}
+
+function etiketMetniCozumle(ham){
+  const metin = String(ham || "").replace(/\r/g, "");
+  if(!metin.trim()) return null;
+
+  const bul = re => { const m = metin.match(re); return m ? String(m[1] || "").trim() : ""; };
+  const sonuc = {};
+
+  // Google'ın verdiği biçim: "Marka: Pastel"
+  sonuc.marka = bul(/(?:Marka|Brand)\s*[:：]\s*([^\n(]+)/i);
+  if(!sonuc.marka){
+    const kucuk = metin.toLocaleLowerCase("tr");
+    const adaylar = BILINEN_MARKALAR.concat(Object.values(markaHaritasi || {}));
+    for(const m of adaylar){
+      if(m && kucuk.includes(m.toLocaleLowerCase("tr"))){ sonuc.marka = m; break; }
+    }
+  }
+
+  // Ürün / renk numarası
+  let numara = bul(/(?:Renk\s*Numaras[ıi]|Renk\s*No|Color\s*(?:No|Number)|Shade|Numara)\s*[:：]\s*([^\n]+)/i);
+  if(!numara) numara = bul(/\b(?:No|Nr)\s*[:.]?\s*(\d{1,4})\b/i);
+  if(numara){
+    const s = numara.match(/\d{1,4}/);
+    sonuc.numara = s ? s[0] : "";
+  }
+
+  // Renk adı: "775 Leafy Green" gibi satırlar ("13 ml" buna benzediği
+  // için ölçü birimleri ve çok kısa sözcükler elenir)
+  const satirEsleme = metin.match(
+    /^[ \t]*(\d{2,4})[ \t]+([A-Za-zÇĞİÖŞÜçğıöşü][A-Za-zÇĞİÖŞÜçğıöşü'’]{2,}(?:[ \t]+[A-Za-zÇĞİÖŞÜçğıöşü'’]+){0,2})[ \t]*$/m
+  );
+  if(satirEsleme){
+    const ad = satirEsleme[2].trim();
+    const cop = /^(ml|mL|gr|gram|oz|fl|adet|nail|polish|oje|made|ingredients)$/i;
+    if(!cop.test(ad) && !/nail|polish|ingredients|made in/i.test(ad)){
+      sonuc.renkAdi = ad;
+      if(!sonuc.numara) sonuc.numara = satirEsleme[1];
+    }
+  }
+
+  // Tek başına duran kısa sayı da ürün numarası olabilir (etiketteki kutu)
+  if(!sonuc.numara){
+    for(const satir of metin.split("\n")){
+      const s = satir.trim();
+      if(/^\d{2,4}$/.test(s) && !/^(19|20)\d{2}$/.test(s)){ sonuc.numara = s; break; }
+    }
+  }
+
+  // Hacim
+  sonuc.hacim = bul(/(\d{1,2}(?:[.,]\d)?\s*m[lL])\b/) ||
+                bul(/(?:Miktar|Hacim|Volume)\s*[:：]\s*([^\n(]+)/i);
+  if(sonuc.hacim) sonuc.hacim = sonuc.hacim.replace(/\s+/g, " ").trim();
+
+  // Tarihler
+  sonuc.uretim = tarihCikar(bul(/(?:Üretim\s*Tarihi[^:：\n]*|Prd|PRD|Üretim)\s*[:：]\s*([^\n]+)/i));
+  sonuc.sonKullanma = tarihCikar(bul(/(?:Son\s*Kullanma\s*Tarihi[^:：\n]*|Exp|EXP|SKT|TETU)\s*[:：]\s*([^\n]+)/i));
+
+  // Barkod: 8-13 haneli sayı
+  const barkodAdayi = metin.match(/\b(\d{8,13})\b/);
+  if(barkodAdayi) sonuc.barkod = barkodDuzelt(barkodAdayi[1]);
+
+  // Fiyat
+  const fiyat = metin.match(/(?:₺|TL)\s*(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*(?:₺|TL)/i);
+  if(fiyat) sonuc.fiyat = (fiyat[1] || fiyat[2]).replace(",", ".");
+
+  const doluMu = Object.values(sonuc).some(d => d);
+  return doluMu ? sonuc : null;
+}
+
+/* Alan açmadığımız bilgiler (hacim, tarihler) nota yazılır. */
+function cozumdenNot(c){
+  const parcalar = [];
+  if(c.hacim) parcalar.push(c.hacim);
+  if(c.uretim) parcalar.push("Üretim " + c.uretim);
+  if(c.sonKullanma){
+    parcalar.push("Son kullanma " + c.sonKullanma +
+                  (tarihGecmisMi(c.sonKullanma) ? " (süresi geçmiş)" : ""));
+  }
+  return parcalar.join(" · ");
+}
+
+/* Çözümlenen bilgiyi forma yazar. Dolu alanların üzerine yazılmaz. */
+function cozumuFormaUygula(c){
+  if(!c) return 0;
+  let sayi = 0;
+  const yaz = (secici, deger) => {
+    if(!deger) return;
+    const el = $(secici);
+    if(el.value.trim()) return;
+    el.value = deger;
+    sayi++;
+  };
+
+  yaz("#fMarka", c.marka);
+  yaz("#fIsim", c.renkAdi || c.numara);
+  yaz("#fBarkod", c.barkod);
+  yaz("#fFiyat", c.fiyat);
+
+  const not = cozumdenNot(c);
+  if(not){
+    const alan = $("#fNot");
+    if(!alan.value.includes(not)){
+      alan.value = alan.value.trim() ? alan.value.trim() + "\n" + not : not;
+      sayi++;
+    }
+  }
+
+  // Etiketten barkod çıktıysa marka ve ürün numarası ondan da tamamlanabilir
+  const barkod = barkodDuzelt($("#fBarkod").value);
+  if(barkod){
+    const oncekiMarka = $("#fMarka").value, oncekiIsim = $("#fIsim").value;
+    markaOner(barkod);
+    if($("#fMarka").value !== oncekiMarka) sayi++;
+    if($("#fIsim").value !== oncekiIsim) sayi++;
+  }
+
+  if(sayi) barkodIpucuTazele();
+  return sayi;
 }
 
 /* Barkodu Google'da aratan adres — açık veritabanları yetmediğinde. */
@@ -2005,6 +2302,23 @@ function olaylariBagla(){
   $("#fBarkod").addEventListener("change", () => {
     const barkod = barkodDuzelt($("#fBarkod").value);
     if(barkod) markaOner(barkod);
+  });
+
+  $("#etiketOku").addEventListener("click", () => $("#etiketFoto").click());
+  $("#etiketFoto").addEventListener("change", async olay => {
+    const dosya = olay.target.files && olay.target.files[0];
+    olay.target.value = "";
+    if(dosya) await etiketFotografindanOku(dosya);
+  });
+  $("#metinYapistirAc").addEventListener("click", () => {
+    const alan = $("#yapistirAlani");
+    alan.hidden = !alan.hidden;
+    if(!alan.hidden) setTimeout(() => $("#yapistirMetin").focus(), 80);
+  });
+  $("#yapistirUygula").addEventListener("click", metinYapistirUygula);
+  $("#yapistirKapat").addEventListener("click", () => {
+    $("#yapistirAlani").hidden = true;
+    $("#yapistirMetin").value = "";
   });
 
   $("#fotoSec").addEventListener("click", () => $("#fFoto").click());
